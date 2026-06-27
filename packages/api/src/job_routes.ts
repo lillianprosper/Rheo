@@ -7,7 +7,7 @@ import { requireDriver, requireBusiness, requireStaff, requirePermission } from 
 import { AppError, NotFoundError, success, paginated } from './utils/errors'
 import { auditLog } from './utils/audit'
 import { redis } from './config/redis'
-import { uploadFile } from '../storage/storage.service'
+import { uploadFile } from './services/storage.service'
 import { sendNotification } from './services/notification.service'
 import { getIO } from './config/socket'
 
