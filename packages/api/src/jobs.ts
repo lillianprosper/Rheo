@@ -1,8 +1,8 @@
 import cron from 'node-cron'
-import { query, queryOne } from '../config/database'
-import { logger } from '../utils/logger'
-import { sendNotification } from '../modules/notifications/notification.service'
-import { sendEmail } from '../modules/notifications/email.service'
+import { query, queryOne } from './config/database'
+import { logger } from './utils/logger'
+import { sendNotification } from './services/notification.service'
+import { sendEmail } from './services/email.service'
 
 export function startCronJobs() {
   logger.info('Starting cron jobs...')
