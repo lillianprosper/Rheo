@@ -2,14 +2,14 @@ import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 
-import { query, queryOne, withTransaction } from '../../config/database'
-import { requireDriver, requireBusiness, requireStaff, requirePermission } from '../../middleware/rbac'
-import { AppError, NotFoundError, success, paginated } from '../../utils/errors'
-import { auditLog } from '../../utils/audit'
-import { redis } from '../../config/redis'
+import { query, queryOne, withTransaction } from '../config/database'
+import { requireDriver, requireBusiness, requireStaff, requirePermission } from '../middleware/rbac'
+import { AppError, NotFoundError, success, paginated } from '../utils/errors'
+import { auditLog } from '../utils/audit'
+import { redis } from '../config/redis'
 import { uploadFile } from '../storage/storage.service'
-import { sendNotification } from '../notifications/notification.service'
-import { getIO } from '../../config/socket'
+import { sendNotification } from '../services/notification.service'
+import { getIO } from '../config/socket'
 
 export const jobRouter = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })

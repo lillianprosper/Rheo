@@ -2,18 +2,18 @@ import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import express from 'express'
 
-import { query, queryOne, withTransaction } from '../../config/database'
-import { requireBusiness, requireStaff, requirePermission } from '../../middleware/rbac'
-import { AppError, NotFoundError, success, paginated } from '../../utils/errors'
-import { auditLog } from '../../utils/audit'
-import { decrypt, generateToken } from '../../utils/encryption'
-import { logger } from '../../utils/logger'
-import { sendNotification } from '../notifications/notification.service'
-import { sendEmail } from '../notifications/email.service'
+import { query, queryOne, withTransaction } from '../config/database'
+import { requireBusiness, requireStaff, requirePermission } from '../middleware/rbac'
+import { AppError, NotFoundError, success, paginated } from '../utils/errors'
+import { auditLog } from '../utils/audit'
+import { decrypt, generateToken } from '../utils/encryption'
+import { logger } from '../utils/logger'
+import { sendNotification } from '../services/notification.service'
+import { sendEmail } from '../services/email.service'
 import {
   chargeMobileMoney, initiateCardPayment, initiateTransfer,
   verifyTransaction, verifyWebhookSignature, getAccountBank,
-} from './flutterwave.service'
+} from '../services/flutterwave.service'
 
 export const paymentRouter = Router()
 
