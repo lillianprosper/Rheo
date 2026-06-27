@@ -2,12 +2,12 @@ import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
-import { query, queryOne, withTransaction } from '../../config/database'
-import { requireStaff, requirePermission } from '../../middleware/rbac'
-import { AppError, NotFoundError, ConflictError, success, paginated } from '../../utils/errors'
-import { auditLog } from '../../utils/audit'
-import { sendEmail } from '../notifications/email.service'
-import { generateToken } from '../../utils/encryption'
+import { query, queryOne, withTransaction } from './config/database'
+import { requireStaff, requirePermission } from './middleware/rbac'
+import { AppError, NotFoundError, ConflictError, success, paginated } from './utils/errors'
+import { auditLog } from './utils/audit'
+import { sendEmail } from './services/email.service'
+import { generateToken } from './utils/encryption'
 
 export const adminRouter = Router()
 
