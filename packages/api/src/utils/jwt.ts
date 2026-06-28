@@ -42,7 +42,7 @@ export function signAccessToken(payload: Omit<AccessTokenPayload, 'jti'>): strin
     audience: surface,
     jwtid: jti,
   }
-  return jwt.sign({ sub, surface, jti, ...rest }, getAccessSecret(surface), options)
+  return jwt.sign({ sub, surface, ...rest }, getAccessSecret(surface), options)
 }
 
 export function signRefreshToken(payload: RefreshTokenPayload): string {
