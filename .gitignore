@@ -1,2 +1,4 @@
 node_modules/
-apps/web/node_modules/
+apps/*/node_modules/
+.next/
+apps/*/.next/
