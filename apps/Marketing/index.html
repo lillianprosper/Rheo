@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rheo Transport Services — Move What Matters</title>
+<meta name="description" content="Uganda's friendliest last-mile delivery platform. Built for small businesses in Kampala and Jinja. Effortless, affordable, reliable.">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --forest:       #1D5C38;
+  --forest-dark:  #0F3020;
+  --forest-mid:   #2D7A50;
+  --forest-light: #D4EAD9;
+  --forest-pale:  #EEF7F0;
+  --blue:         #5EB5D6;
+  --blue-dark:    #2A7FA8;
+  --blue-light:   #C8E9F4;
+  --blue-pale:    #EAF6FB;
+  --yellow:       #F5C842;
+  --yellow-dark:  #D4A017;
+  --yellow-light: #FDE99B;
+  --yellow-pale:  #FFFAE8;
+  --cream:        #FAF7F2;
+  --white:        #FFFFFF;
+  --ink:          #0F2018;
+  --ink-mid:      #2C4A35;
+  --ink-soft:     #4A6B55;
+  --ink-muted:    #7A9A82;
+  --border:       rgba(29,92,56,0.12);
+  --shadow-sm:    0 2px 8px rgba(15,48,32,0.08);
+  --shadow-md:    0 8px 32px rgba(15,48,32,0.12);
+  --shadow-lg:    0 24px 64px rgba(15,48,32,0.16);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.6;
+  font-size: 15px;
+  overflow-x: hidden;
+}
+h1, h2, h3 { font-family: 'Playfair Display', serif; line-height: 1.1; }
+h4, h5, h6 { font-family: 'DM Sans', sans-serif; font-weight: 600; }
+.script { font-family: 'Caveat', cursive; }
+
+/* ─── LAYOUT ─── */
+.container { max-width: 1120px; margin: 0 auto; padding: 0 40px; }
+section { padding: 100px 0; }
+.section-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--forest-mid);
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.section-label::after { content:''; width:32px; height:1.5px; background:currentColor; border-radius:1px; }
+.section-label.light { color: var(--yellow); }
+.section-label.light::after { background: var(--yellow); }
+
+/* ─── BUTTONS ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 28px; border-radius: 50px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  letter-spacing: 0.02em; text-decoration: none; cursor: pointer;
+  border: none; transition: all 0.2s ease;
+}
+.btn-primary { background: var(--yellow); color: var(--forest-dark); }
+.btn-primary:hover { background: var(--yellow-dark); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,200,66,0.4); }
+.btn-outline { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,0.4); }
+.btn-outline:hover { border-color: var(--yellow); color: var(--yellow); }
+.btn-green { background: var(--forest); color: var(--white); }
+.btn-green:hover { background: var(--forest-mid); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(29,92,56,0.3); }
+.btn-lg { padding: 17px 36px; font-size: 15px; }
+.btn-sm { padding: 10px 20px; font-size: 13px; }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ─── LOGO SVG (inline, recolorable) ─── */
+.logo-svg { display: block; }
+/* Light version — on dark backgrounds: stroke becomes yellow, text stays light */
+.logo-light .car-stroke   { stroke: var(--yellow) !important; }
+.logo-light .car-fill     { fill: var(--yellow) !important; }
+.logo-light .logo-wordmark{ fill: var(--white) !important; }
+.logo-light .logo-tagline { fill: rgba(255,255,255,0.6) !important; }
+.logo-light .logo-underline{ stroke: rgba(255,255,255,0.4) !important; }
+.logo-light .speed-trail  { stroke: rgba(255,255,255,0.3) !important; }
+.logo-light .accent-yellow{ fill: var(--yellow) !important; }
+/* Dark version — on light backgrounds: all forest green */
+.logo-dark .car-stroke    { stroke: var(--forest) !important; }
+.logo-dark .car-fill      { fill: var(--forest) !important; }
+.logo-dark .logo-wordmark { fill: var(--forest-dark) !important; }
+.logo-dark .logo-tagline  { fill: var(--ink-soft) !important; }
+.logo-dark .logo-underline{ stroke: var(--forest-mid) !important; }
+.logo-dark .speed-trail   { stroke: var(--forest) !important; }
+.logo-dark .accent-yellow { fill: var(--yellow) !important; }
+
+/* ─── NAV ─── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--forest-dark);
+  padding: 0 40px; height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: all 0.3s ease;
+}
+.nav.scrolled {
+  background: rgba(15,48,32,0.97);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.nav-logo { display:flex; align-items:center; text-decoration:none; }
+.nav-logo-svg { height: 40px; width: auto; }
+.nav-links { display:flex; align-items:center; gap:32px; list-style:none; }
+.nav-links a { color:rgba(255,255,255,0.65); text-decoration:none; font-size:14px; font-weight:500; transition:color 0.2s; }
+.nav-links a:hover { color:var(--white); }
+.nav-actions { display:flex; align-items:center; gap:12px; }
+.nav-login { color:rgba(255,255,255,0.7); text-decoration:none; font-size:14px; font-weight:500; transition:color 0.2s; }
+.nav-login:hover { color:var(--yellow); }
+.nav-mobile-toggle { display:none; cursor:pointer; background:none; border:none; }
+
+/* ─── HERO ─── */
+.hero {
+  min-height: 100vh; background: var(--forest-dark);
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; padding-top: 68px;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 60% at 75% 40%, rgba(94,181,214,0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 70% at 15% 85%, rgba(245,200,66,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 10%, rgba(29,92,56,0.4) 0%, transparent 60%);
+}
+.hero::after {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%);
+}
+.hero-inner {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 60px; align-items: center; padding: 80px 0;
+}
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(245,200,66,0.12); border: 1px solid rgba(245,200,66,0.25);
+  color: var(--yellow); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 7px 16px; border-radius: 50px; margin-bottom: 28px;
+}
+.hero-tag-dot { width:6px; height:6px; background:var(--yellow); border-radius:50%; animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.hero-h1 {
+  font-size: clamp(48px, 6vw, 82px);
+  color: var(--white); line-height: 1.0;
+  margin-bottom: 20px; letter-spacing: -0.02em;
+}
+.hero-h1 em { color: var(--yellow); font-style: normal; }
+.hero-h1 .indent { padding-left: 56px; }
+.hero-sub {
+  font-size: clamp(15px, 1.8vw, 18px);
+  color: rgba(255,255,255,0.55); font-weight: 300;
+  max-width: 480px; line-height: 1.75; margin-bottom: 40px;
+}
+.hero-actions { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:56px; }
+.hero-stats { display:flex; gap:32px; padding-top:32px; border-top:1px solid rgba(255,255,255,0.08); }
+.hero-stat-num { font-family:'Playfair Display',serif; font-size:28px; color:var(--yellow); line-height:1; }
+.hero-stat-label { font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px; }
+
+/* Hero visual — big logo + phone mockup */
+.hero-visual {
+  position: relative; display:flex;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 24px;
+}
+.hero-logo-display {
+  width: 100%; max-width: 460px;
+  filter: drop-shadow(0 8px 32px rgba(245,200,66,0.15));
+  animation: floatLogo 4s ease-in-out infinite;
+}
+@keyframes floatLogo {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.hero-phone-strip {
+  display: flex; gap: 12px; width: 100%;
+}
+.hero-float-card {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; padding: 14px 16px;
+  backdrop-filter: blur(8px);
+}
+.hfc-label { font-size:9px; color:rgba(255,255,255,0.35); font-weight:600; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:4px; }
+.hfc-value { font-family:'Playfair Display',serif; font-size:18px; color:var(--yellow); }
+.hfc-sub { font-size:10px; color:rgba(255,255,255,0.4); margin-top:2px; }
+.live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#22c55e; margin-right:5px; animation:blink 2s infinite; }
+
+/* ─── HOW IT WORKS ─── */
+.how { background: var(--cream); }
+.how-tabs {
+  display:flex; gap:4px;
+  background:rgba(29,92,56,0.08); border-radius:50px;
+  padding:4px; margin-bottom:64px; width:fit-content;
+}
+.how-tab {
+  padding:10px 28px; border-radius:50px;
+  font-size:14px; font-weight:600; cursor:pointer;
+  border:none; background:transparent;
+  color:var(--ink-soft); transition:all 0.25s;
+  font-family:'DM Sans',sans-serif;
+}
+.how-tab.active { background:var(--forest-dark); color:var(--white); }
+.how-content { display:none; }
+.how-content.active { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
+.how-steps { display:flex; flex-direction:column; }
+.how-step { display:flex; gap:24px; padding:28px 0; border-bottom:1px solid var(--border); }
+.how-step:last-child { border-bottom:none; }
+.how-step-num {
+  font-family:'Playfair Display',serif; font-size:13px; font-weight:700;
+  color:var(--forest-mid); width:32px; height:32px; border-radius:50%;
+  border:1.5px solid var(--forest-light);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; margin-top:2px;
+}
+.how-step-title { font-size:16px; font-weight:600; color:var(--forest-dark); margin-bottom:6px; }
+.how-step-body { font-size:14px; color:var(--ink-soft); line-height:1.7; }
+.how-visual {
+  background:var(--forest-dark); border-radius:24px; padding:40px;
+  position:relative; overflow:hidden; min-height:400px;
+}
+.how-visual::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse 80% 60% at 30% 70%, rgba(94,181,214,0.1), transparent 60%);
+}
+.how-big-text {
+  font-family:'Playfair Display',serif; font-size:clamp(32px,3.5vw,48px);
+  color:var(--white); line-height:1.1; position:relative; z-index:1;
+}
+.how-big-text em { color:var(--yellow); font-style:normal; }
+.how-tag { font-family:'Caveat',cursive; font-size:20px; color:rgba(255,255,255,0.35); display:block; margin-top:12px; position:relative; z-index:1; }
+.how-checklist { margin-top:28px; display:flex; flex-direction:column; gap:12px; position:relative; z-index:1; }
+.how-check { display:flex; gap:12px; align-items:flex-start; }
+.how-check-icon {
+  width:20px; height:20px; border-radius:50%;
+  background:rgba(245,200,66,0.15); border:1px solid rgba(245,200,66,0.3);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; margin-top:1px; font-size:10px; color:var(--yellow);
+}
+.how-check-text { font-size:14px; color:rgba(255,255,255,0.65); line-height:1.5; }
+
+/* ─── BUSINESSES ─── */
+.businesses { background:var(--white); }
+.biz-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:56px; }
+.biz-card {
+  background:var(--cream); border-radius:20px; padding:32px;
+  border:1px solid var(--border); transition:all 0.25s; position:relative; overflow:hidden;
+}
+.biz-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); border-color:var(--forest-light); }
+.biz-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--forest); border-radius:20px 20px 0 0;
+  transform:scaleX(0); transition:transform 0.25s; transform-origin:left;
+}
+.biz-card:hover::before { transform:scaleX(1); }
+.biz-icon { width:48px; height:48px; border-radius:12px; background:var(--forest-pale); display:flex; align-items:center; justify-content:center; margin-bottom:20px; }
+.biz-icon svg { width:24px; height:24px; color:var(--forest); }
+.biz-title { font-size:18px; font-weight:700; color:var(--forest-dark); margin-bottom:10px; }
+.biz-body { font-size:14px; color:var(--ink-soft); line-height:1.7; }
+
+/* ─── AUDIENCE ─── */
+.audience { background:var(--forest-dark); }
+.audience-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:56px; border-radius:24px; overflow:hidden; }
+.audience-card { background:rgba(255,255,255,0.04); padding:48px; transition:background 0.25s; position:relative; overflow:hidden; }
+.audience-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--yellow); transform:scaleX(0); transition:transform 0.3s; transform-origin:left; }
+.audience-card:hover { background:rgba(255,255,255,0.06); }
+.audience-card:hover::after { transform:scaleX(1); }
+.audience-icon { font-size:40px; margin-bottom:20px; }
+.audience-title { font-family:'Playfair Display',serif; font-size:28px; color:var(--white); margin-bottom:12px; }
+.audience-body { font-size:14px; color:rgba(255,255,255,0.55); line-height:1.75; max-width:360px; }
+.audience-cta { margin-top:28px; display:inline-flex; align-items:center; gap:8px; color:var(--yellow); font-size:14px; font-weight:600; text-decoration:none; transition:gap 0.2s; }
+.audience-cta:hover { gap:12px; }
+.audience-perks { margin-top:24px; display:flex; flex-direction:column; gap:8px; }
+.audience-perk { display:flex; gap:10px; align-items:center; font-size:13px; color:rgba(255,255,255,0.6); }
+.audience-perk::before { content:'→'; color:var(--yellow); font-weight:700; flex-shrink:0; }
+
+/* ─── PRICING ─── */
+.pricing { background:var(--cream); }
+.pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:56px; }
+.pricing-card { background:var(--white); border-radius:24px; border:1.5px solid var(--border); padding:36px; position:relative; transition:all 0.25s; }
+.pricing-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); }
+.pricing-card.featured { background:var(--forest-dark); border-color:transparent; transform:scale(1.02); }
+.pricing-card.featured:hover { transform:scale(1.02) translateY(-4px); }
+.pricing-badge { display:inline-block; background:var(--yellow); color:var(--forest-dark); font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:4px 12px; border-radius:50px; margin-bottom:20px; }
+.pricing-name { font-family:'Playfair Display',serif; font-size:22px; color:var(--forest-dark); margin-bottom:8px; }
+.pricing-card.featured .pricing-name { color:var(--white); }
+.pricing-price { font-family:'Playfair Display',serif; font-size:40px; color:var(--forest-dark); line-height:1; margin-bottom:4px; }
+.pricing-card.featured .pricing-price { color:var(--yellow); }
+.pricing-period { font-size:13px; color:var(--ink-muted); margin-bottom:28px; }
+.pricing-card.featured .pricing-period { color:rgba(255,255,255,0.45); }
+.pricing-divider { height:1px; background:var(--border); margin-bottom:24px; }
+.pricing-card.featured .pricing-divider { background:rgba(255,255,255,0.1); }
+.pricing-features { list-style:none; display:flex; flex-direction:column; gap:12px; margin-bottom:32px; }
+.pricing-feature { display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--ink-soft); }
+.pricing-card.featured .pricing-feature { color:rgba(255,255,255,0.7); }
+.pricing-feature::before { content:'✓'; color:var(--forest-mid); font-weight:700; flex-shrink:0; }
+.pricing-card.featured .pricing-feature::before { color:var(--yellow); }
+.pricing-desc { font-size:13px; color:var(--ink-muted); line-height:1.6; margin-bottom:20px; }
+.pricing-card.featured .pricing-desc { color:rgba(255,255,255,0.45); }
+.pricing-toggle { display:flex; align-items:center; gap:16px; justify-content:center; margin-bottom:20px; }
+.toggle-label { font-size:14px; font-weight:500; color:var(--ink-soft); }
+.toggle-label.active { color:var(--forest-dark); font-weight:600; }
+.toggle-switch { width:48px; height:26px; background:var(--forest); border-radius:13px; position:relative; cursor:pointer; transition:background 0.2s; }
+.toggle-switch::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; background:var(--white); border-radius:50%; transition:transform 0.2s; }
+.toggle-switch.annual::after { transform:translateX(22px); }
+.save-badge { background:var(--yellow-pale); border:1px solid var(--yellow-light); color:var(--yellow-dark); font-size:11px; font-weight:700; padding:3px 10px; border-radius:50px; }
+
+/* ─── TESTIMONIALS ─── */
+.testimonials { background:var(--white); }
+.testi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:56px; }
+.testi-card { background:var(--cream); border-radius:20px; padding:32px; border:1px solid var(--border); }
+.testi-quote { font-family:'Playfair Display',serif; font-style:italic; font-size:16px; color:var(--forest-dark); line-height:1.6; margin-bottom:24px; padding-left:16px; border-left:3px solid var(--yellow); }
+.testi-author { display:flex; gap:12px; align-items:center; }
+.testi-avatar { width:44px; height:44px; border-radius:50%; background:var(--forest-pale); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-size:16px; color:var(--forest); font-weight:700; }
+.testi-name { font-size:14px; font-weight:600; color:var(--forest-dark); }
+.testi-biz { font-size:12px; color:var(--ink-muted); }
+.testi-stars { color:var(--yellow); font-size:12px; margin-top:2px; }
+
+/* ─── CTA BAND ─── */
+.cta-band { background:var(--yellow); padding:80px 0; }
+.cta-band-inner { display:grid; grid-template-columns:1fr auto; gap:40px; align-items:center; }
+.cta-band-h { font-size:clamp(28px,4vw,44px); color:var(--forest-dark); line-height:1.1; }
+.cta-band-sub { font-size:16px; color:var(--forest-dark); opacity:0.65; margin-top:10px; font-weight:300; }
+.cta-band-actions { display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+
+/* ─── DRIVERS ─── */
+.drivers-section { background:var(--forest-pale); }
+.drivers-inner { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
+.drivers-steps { display:flex; flex-direction:column; margin-top:36px; }
+.driver-step { display:flex; gap:20px; padding:20px 0; border-bottom:1px solid var(--border); }
+.driver-step:last-child { border-bottom:none; }
+.driver-step-num { width:32px; height:32px; border-radius:50%; background:var(--forest); color:var(--white); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.driver-step-title { font-size:15px; font-weight:600; color:var(--forest-dark); margin-bottom:4px; }
+.driver-step-body { font-size:13px; color:var(--ink-soft); line-height:1.6; }
+.drivers-earnings { background:var(--forest-dark); border-radius:24px; padding:40px; position:relative; overflow:hidden; }
+.drivers-earnings::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 70% 60% at 70% 30%, rgba(245,200,66,0.08), transparent 60%); }
+.earnings-title { font-family:'Playfair Display',serif; font-size:13px; color:rgba(255,255,255,0.4); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; position:relative; z-index:1; }
+.earnings-amount { font-family:'Playfair Display',serif; font-size:52px; color:var(--yellow); line-height:1; position:relative; z-index:1; }
+.earnings-period { font-size:13px; color:rgba(255,255,255,0.4); margin-top:4px; position:relative; z-index:1; }
+.earnings-breakdown { margin-top:32px; display:flex; flex-direction:column; gap:12px; position:relative; z-index:1; }
+.earnings-row { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(255,255,255,0.05); border-radius:10px; border:1px solid rgba(255,255,255,0.06); }
+.earnings-row-label { font-size:13px; color:rgba(255,255,255,0.6); }
+.earnings-row-val { font-size:14px; font-weight:600; color:var(--white); }
+.earnings-row-val.positive { color:var(--yellow); }
+.earnings-note { font-size:11px; color:rgba(255,255,255,0.3); margin-top:16px; position:relative; z-index:1; }
+
+/* ─── TRUST ─── */
+.trust { background:var(--cream); }
+.trust-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; margin-top:56px; background:var(--border); border-radius:20px; overflow:hidden; }
+.trust-item { background:var(--white); padding:36px 28px; text-align:center; }
+.trust-icon { font-size:32px; margin-bottom:16px; }
+.trust-title { font-size:15px; font-weight:700; color:var(--forest-dark); margin-bottom:8px; }
+.trust-body { font-size:13px; color:var(--ink-soft); line-height:1.6; }
+
+/* ─── CONTACT ─── */
+.contact { background:var(--forest-dark); }
+.contact-inner { display:grid; grid-template-columns:1fr 1fr; gap:80px; }
+.contact-h { font-size:clamp(32px,4vw,48px); color:var(--white); margin-bottom:16px; }
+.contact-sub { font-size:16px; color:rgba(255,255,255,0.5); line-height:1.75; font-weight:300; }
+.contact-info { margin-top:40px; display:flex; flex-direction:column; gap:16px; }
+.contact-info-item { display:flex; gap:12px; align-items:flex-start; }
+.contact-info-icon { width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; }
+.contact-info-label { font-size:11px; color:rgba(255,255,255,0.35); font-weight:600; letter-spacing:0.08em; text-transform:uppercase; }
+.contact-info-value { font-size:14px; color:rgba(255,255,255,0.75); margin-top:2px; }
+.contact-form { background:rgba(255,255,255,0.04); border-radius:24px; padding:40px; border:1px solid rgba(255,255,255,0.08); }
+.form-title { font-family:'Playfair Display',serif; font-size:22px; color:var(--white); margin-bottom:28px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-group { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.form-label { font-size:12px; font-weight:600; color:rgba(255,255,255,0.5); letter-spacing:0.06em; }
+.form-input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 16px; font-family:'DM Sans',sans-serif; font-size:14px; color:var(--white); outline:none; transition:border-color 0.2s; width:100%; }
+.form-input::placeholder { color:rgba(255,255,255,0.25); }
+.form-input:focus { border-color:var(--yellow); }
+.form-select { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 16px; font-family:'DM Sans',sans-serif; font-size:14px; color:var(--white); outline:none; width:100%; cursor:pointer; -webkit-appearance:none; }
+.form-select option { background:var(--forest-dark); }
+.form-select:focus { border-color:var(--yellow); }
+.form-textarea { resize:vertical; min-height:100px; }
+
+/* ─── FOOTER ─── */
+.footer { background:var(--ink); padding:64px 0 32px; }
+.footer-top { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:48px; padding-bottom:48px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.footer-logo-svg { height:48px; width:auto; margin-bottom:12px; }
+.footer-tagline-text { font-family:'Caveat',cursive; font-size:18px; color:rgba(255,255,255,0.4); margin-top:4px; }
+.footer-desc { font-size:13px; color:rgba(255,255,255,0.35); line-height:1.7; max-width:280px; margin-top:16px; }
+.footer-col-title { font-size:11px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-bottom:16px; }
+.footer-links { list-style:none; display:flex; flex-direction:column; gap:10px; }
+.footer-links a { color:rgba(255,255,255,0.5); text-decoration:none; font-size:14px; transition:color 0.2s; }
+.footer-links a:hover { color:var(--white); }
+.footer-bottom { display:flex; justify-content:space-between; align-items:center; padding-top:32px; flex-wrap:wrap; gap:16px; }
+.footer-copy { font-size:12px; color:rgba(255,255,255,0.25); }
+.footer-legal { display:flex; gap:24px; }
+.footer-legal a { font-size:12px; color:rgba(255,255,255,0.25); text-decoration:none; transition:color 0.2s; }
+.footer-legal a:hover { color:rgba(255,255,255,0.5); }
+
+/* ─── MOBILE MENU ─── */
+.mobile-menu { display:none; position:fixed; inset:0; z-index:99; background:var(--forest-dark); flex-direction:column; padding:80px 40px 40px; gap:8px; }
+.mobile-menu.open { display:flex; }
+.mobile-menu a { font-family:'Playfair Display',serif; font-size:28px; color:var(--white); text-decoration:none; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06); transition:color 0.2s; }
+.mobile-menu a:hover { color:var(--yellow); }
+
+/* ─── ANIMATIONS ─── */
+.fade-up { opacity:0; transform:translateY(28px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.fade-up.visible { opacity:1; transform:translateY(0); }
+.fade-up-delay-1 { transition-delay:0.1s; }
+.fade-up-delay-2 { transition-delay:0.2s; }
+.fade-up-delay-3 { transition-delay:0.3s; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width:900px) {
+  .container { padding:0 24px; } section { padding:64px 0; }
+  .hero-inner { grid-template-columns:1fr; } .hero-visual { display:none; }
+  .how-content.active { grid-template-columns:1fr; }
+  .biz-grid { grid-template-columns:1fr 1fr; }
+  .audience-grid { grid-template-columns:1fr; }
+  .pricing-grid { grid-template-columns:1fr; } .pricing-card.featured { transform:none; }
+  .testi-grid { grid-template-columns:1fr; }
+  .cta-band-inner { grid-template-columns:1fr; } .cta-band-actions { align-items:flex-start; }
+  .drivers-inner { grid-template-columns:1fr; }
+  .trust-grid { grid-template-columns:1fr 1fr; }
+  .contact-inner { grid-template-columns:1fr; }
+  .footer-top { grid-template-columns:1fr 1fr; }
+  .nav-links, .nav-actions .btn { display:none; }
+  .nav-mobile-toggle { display:block; }
+  .form-row { grid-template-columns:1fr; }
+}
+@media (max-width:600px) {
+  .biz-grid { grid-template-columns:1fr; }
+  .trust-grid { grid-template-columns:1fr; }
+  .footer-top { grid-template-columns:1fr; }
+  .hero-stats { gap:20px; flex-wrap:wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ INLINE LOGO SVG DEFINITION (reusable symbol) ═══ -->
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="rheo-logo-full" viewBox="0 0 520 180">
+    <!-- Speed trail lines -->
+    <line class="speed-trail" x1="8" y1="107" x2="118" y2="107" stroke="#1D5C38" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <line class="speed-trail" x1="20" y1="116" x2="116" y2="116" stroke="#1D5C38" stroke-width="0.9" stroke-linecap="round" opacity="0.35"/>
+    <line class="speed-trail" x1="32" y1="123" x2="115" y2="123" stroke="#1D5C38" stroke-width="0.6" stroke-linecap="round" opacity="0.22"/>
+    <line class="speed-trail" x1="4"  y1="99"  x2="100" y2="99"  stroke="#1D5C38" stroke-width="0.5" stroke-linecap="round" opacity="0.18"/>
+    <!-- Main car body outline -->
+    <path class="car-stroke" d="M112 128 Q116 108 136 96 Q152 86 178 81 Q204 77 232 75 Q258 74 282 73 Q308 72 328 71 Q352 70 368 70 Q388 70 403 74 Q418 78 426 86 Q436 93 438 103 Q441 112 440 120 Q438 127 432 130 Q421 134 402 135 Q365 137 325 137 Q278 138 238 138 Q190 139 155 138 Q130 137 112 132 Z" fill="none" stroke="#1D5C38" stroke-width="2.4" stroke-linejoin="round"/>
+    <!-- Rooftop / cabin filled -->
+    <path class="car-fill" d="M178 81 Q204 63 240 57 Q265 52 292 52 Q318 52 338 56 Q358 60 368 66 Q380 72 382 78 L368 70 Q348 68 325 69 Q300 70 275 72 Q250 74 225 77 Q200 79 178 81 Z" fill="#1D5C38" opacity="0.88"/>
+    <!-- Windshield -->
+    <path class="car-fill" d="M222 57 Q244 51 268 51 Q292 51 308 55 Q323 59 332 65 Q315 63 290 64 Q264 65 242 68 Q228 70 222 75 Z" fill="#1D5C38" opacity="0.5"/>
+    <!-- Rear window -->
+    <path class="car-fill" d="M338 56 Q358 60 367 66 Q377 72 378 79 Q366 76 352 74 Q340 73 335 70 Q332 65 336 59 Z" fill="#1D5C38" opacity="0.5"/>
+    <!-- Front grille / headlights -->
+    <rect class="car-fill" x="430" y="89" width="7" height="22" rx="2" fill="#1D5C38" opacity="0.7"/>
+    <ellipse class="car-fill" cx="421" cy="93"  rx="5" ry="4" fill="#1D5C38" opacity="0.5"/>
+    <ellipse class="car-fill" cx="421" cy="103" rx="5" ry="4" fill="#1D5C38" opacity="0.5"/>
+    <ellipse class="car-fill" cx="421" cy="113" rx="5" ry="4" fill="#1D5C38" opacity="0.5"/>
+    <!-- Front bumper -->
+    <path class="car-stroke" d="M436 103 Q446 101 448 106 Q450 111 448 117 Q445 121 436 121" stroke="#1D5C38" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- Side mirror -->
+    <path class="car-fill" d="M368 84 Q378 80 383 82 Q386 85 383 89 Q377 91 368 88 Z" fill="#1D5C38" opacity="0.65"/>
+    <!-- Front wheel arch -->
+    <path class="car-stroke" d="M378 135 Q390 131 403 130 Q418 128 432 131 Q442 134 442 140 Q438 146 425 147 Q408 148 394 147 Q380 145 376 139 Z" fill="none" stroke="#1D5C38" stroke-width="1.8"/>
+    <!-- Front wheel -->
+    <circle class="car-stroke" cx="408" cy="146" r="19" fill="none" stroke="#1D5C38" stroke-width="2.4"/>
+    <circle class="car-fill" cx="408" cy="146" r="8" fill="#1D5C38" opacity="0.12"/>
+    <circle class="car-fill" cx="408" cy="146" r="3" fill="#1D5C38" opacity="0.45"/>
+    <!-- Rear wheel arch -->
+    <path class="car-stroke" d="M153 135 Q166 131 180 130 Q197 128 212 131 Q226 134 228 140 Q225 147 212 148 Q195 149 178 148 Q162 147 155 141 Z" fill="none" stroke="#1D5C38" stroke-width="1.8"/>
+    <!-- Rear wheel -->
+    <circle class="car-stroke" cx="191" cy="147" r="19" fill="none" stroke="#1D5C38" stroke-width="2.4"/>
+    <circle class="car-fill" cx="191" cy="147" r="8" fill="#1D5C38" opacity="0.12"/>
+    <circle class="car-fill" cx="191" cy="147" r="3" fill="#1D5C38" opacity="0.45"/>
+    <!-- Rear brake swoosh accent (yellow) -->
+    <path class="accent-yellow" d="M114 115 Q119 109 125 113 Q129 117 124 123 Q118 128 112 124 Q108 119 114 115 Z" fill="#F5C842" opacity="0.85"/>
+    <path class="accent-yellow" d="M109 122 Q114 128 110 134 Q106 138 103 133 Q101 128 104 123 Z" fill="#F5C842" opacity="0.5"/>
+    <!-- "Rheo" italic wordmark -->
+    <text class="logo-wordmark" x="228" y="115"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="38" font-style="italic" font-weight="400"
+      fill="#1D5C38" letter-spacing="-0.5">Rheo</text>
+    <!-- Underline accent -->
+    <path class="logo-underline" d="M228 121 Q257 125 292 122" stroke="#1D5C38" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.45"/>
+    <!-- "Move What Matters" tagline -->
+    <text class="logo-tagline" x="308" y="130"
+      font-family="'DM Sans', 'Trebuchet MS', Arial, sans-serif"
+      font-size="9" font-weight="600" fill="#2D7A50"
+      letter-spacing="2.2">MOVE WHAT MATTERS</text>
+  </symbol>
+
+  <!-- Compact mark-only version (no tagline, for small spaces) -->
+  <symbol id="rheo-logo-compact" viewBox="0 0 320 130">
+    <line class="speed-trail" x1="5"  y1="68" x2="75"  y2="68" stroke="#1D5C38" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+    <line class="speed-trail" x1="12" y1="75" x2="73"  y2="75" stroke="#1D5C38" stroke-width="0.8" stroke-linecap="round" opacity="0.32"/>
+    <line class="speed-trail" x1="20" y1="81" x2="72"  y2="81" stroke="#1D5C38" stroke-width="0.5" stroke-linecap="round" opacity="0.2"/>
+    <path class="car-stroke" d="M68 83 Q72 68 86 59 Q97 52 114 49 Q130 46 148 45 Q164 44 178 44 Q196 43 210 42 Q226 41 236 43 Q248 45 255 50 Q262 56 264 63 Q266 70 264 76 Q262 80 257 83 Q248 86 234 87 Q210 88 185 88 Q160 89 140 89 Q116 89 94 88 Q76 87 68 84 Z" fill="none" stroke="#1D5C38" stroke-width="2" stroke-linejoin="round"/>
+    <path class="car-fill" d="M114 49 Q130 37 152 33 Q168 29 185 29 Q202 29 214 32 Q226 36 232 41 L210 42 Q192 42 172 43 Q152 44 136 46 Q122 48 114 49 Z" fill="#1D5C38" opacity="0.88"/>
+    <path class="car-fill" d="M138 33 Q153 29 168 29 Q183 29 193 32 Q203 35 208 39 Q194 38 176 39 Q158 40 145 42 Z" fill="#1D5C38" opacity="0.5"/>
+    <ellipse class="car-fill" cx="254" cy="60" rx="3.5" ry="3" fill="#1D5C38" opacity="0.5"/>
+    <ellipse class="car-fill" cx="254" cy="68" rx="3.5" ry="3" fill="#1D5C38" opacity="0.5"/>
+    <circle class="car-stroke" cx="244" cy="90" r="13" fill="none" stroke="#1D5C38" stroke-width="2"/>
+    <circle class="car-fill" cx="244" cy="90" r="3" fill="#1D5C38" opacity="0.45"/>
+    <circle class="car-stroke" cx="109" cy="90" r="13" fill="none" stroke="#1D5C38" stroke-width="2"/>
+    <circle class="car-fill" cx="109" cy="90" r="3" fill="#1D5C38" opacity="0.45"/>
+    <path class="accent-yellow" d="M70 72 Q74 67 78 70 Q81 73 78 78 Q73 82 69 78 Z" fill="#F5C842" opacity="0.85"/>
+    <path class="accent-yellow" d="M67 79 Q70 83 68 87 Q65 90 62 86 Q60 82 63 78 Z" fill="#F5C842" opacity="0.5"/>
+    <text class="logo-wordmark" x="134" y="73"
+      font-family="Georgia,'Times New Roman',serif"
+      font-size="26" font-style="italic" fill="#1D5C38">Rheo</text>
+    <path class="logo-underline" d="M134 78 Q152 81 175 79" stroke="#1D5C38" stroke-width="1" fill="none" opacity="0.4"/>
+  </symbol>
+</svg>
+
+<!-- ═══ NAVIGATION ═══ -->
+<nav class="nav" id="nav">
+  <a href="/" class="nav-logo" aria-label="Rheo Home">
+    <svg class="nav-logo-svg logo-light" role="img" aria-label="Rheo Transport Services">
+      <use href="#rheo-logo-compact"/>
+    </svg>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#businesses">For Businesses</a></li>
+    <li><a href="#drivers">For Drivers</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/login" class="nav-login">Sign in</a>
+    <a href="/business/register" class="btn btn-primary btn-sm">Get Started</a>
+  </div>
+  <button class="nav-mobile-toggle" onclick="toggleMenu()" aria-label="Open menu">
+    <svg width="24" height="24" fill="none" stroke="white" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+</nav>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#how" onclick="closeMenu()">How it works</a>
+  <a href="#businesses" onclick="closeMenu()">For Businesses</a>
+  <a href="#drivers" onclick="closeMenu()">For Drivers</a>
+  <a href="#pricing" onclick="closeMenu()">Pricing</a>
+  <a href="#contact" onclick="closeMenu()">Contact</a>
+  <a href="/business/register" style="color:var(--yellow);margin-top:16px;" onclick="closeMenu()">Get Started →</a>
+  <a href="/drivers/apply" style="font-size:18px;margin-top:4px;" onclick="closeMenu()">Become a Driver →</a>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-tag">
+          <span class="hero-tag-dot"></span>
+          Now live in Kampala &amp; Jinja
+        </div>
+        <h1 class="hero-h1">
+          Flow.<br>
+          <em>Deliver.</em><br>
+          <span class="indent">Grow.</span>
+        </h1>
+        <p class="hero-sub">Uganda's friendliest last-mile delivery platform — built so every small business can deliver like a big brand. Effortless, affordable, always on time.</p>
+        <div class="hero-actions">
+          <a href="/business/register" class="btn btn-primary btn-lg">
+            Start Delivering
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </a>
+          <a href="#how" class="btn btn-outline btn-lg">See How It Works</a>
+        </div>
+        <div class="hero-stats">
+          <div><div class="hero-stat-num">2</div><div class="hero-stat-label">Launch cities</div></div>
+          <div><div class="hero-stat-num">1%</div><div class="hero-stat-label">Driver platform fee</div></div>
+          <div><div class="hero-stat-num">24/7</div><div class="hero-stat-label">Live tracking</div></div>
+          <div><div class="hero-stat-num">3</div><div class="hero-stat-label">Payment methods</div></div>
+        </div>
+      </div>
+
+      <!-- Hero right: actual logo + live stats -->
+      <div class="hero-visual">
+        <svg class="hero-logo-display logo-light" viewBox="0 0 520 180" role="img" aria-label="Rheo Transport Services — Move What Matters">
+          <use href="#rheo-logo-full"/>
+        </svg>
+        <div class="hero-phone-strip">
+          <div class="hero-float-card">
+            <div class="hfc-label">Active Driver</div>
+            <div class="hfc-value" style="font-size:15px;color:var(--white);font-family:'DM Sans',sans-serif;font-weight:600;"><span class="live-dot"></span>Emmanuel K.</div>
+            <div class="hfc-sub">18 min · Boda boda</div>
+          </div>
+          <div class="hero-float-card">
+            <div class="hfc-label">Last Delivered</div>
+            <div class="hfc-value" style="font-size:14px;color:#6ee09a;font-family:'DM Sans',sans-serif;font-weight:600;">✓ Confirmed</div>
+            <div class="hfc-sub">Ntinda · 3 min ago</div>
+          </div>
+          <div class="hero-float-card">
+            <div class="hfc-label">Jobs Today</div>
+            <div class="hfc-value">24</div>
+            <div class="hfc-sub">across Kampala</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section class="how" id="how">
+  <div class="container">
+    <div class="section-label fade-up">How it works</div>
+    <h2 style="font-size:clamp(32px,4vw,52px);color:var(--forest-dark);margin-bottom:40px;" class="fade-up fade-up-delay-1">Simple for everyone.<br><em style="font-style:italic;color:var(--forest-mid);">Powerful underneath.</em></h2>
+    <div class="how-tabs fade-up fade-up-delay-2">
+      <button class="how-tab active" onclick="switchTab('business')">For Businesses</button>
+      <button class="how-tab" onclick="switchTab('driver')">For Drivers</button>
+    </div>
+    <!-- Business tab -->
+    <div class="how-content active" id="tab-business">
+      <div class="how-steps">
+        <div class="how-step fade-up"><div class="how-step-num">01</div><div><div class="how-step-title">Create your account</div><div class="how-step-body">Register on rheo.co, pick a plan that fits your volume, and complete your business verification. Takes less than 5 minutes.</div></div></div>
+        <div class="how-step fade-up fade-up-delay-1"><div class="how-step-num">02</div><div><div class="how-step-title">Add a job to your queue</div><div class="how-step-body">Enter pickup and delivery details on the app or web dashboard. Set it and forget it — we handle the rest.</div></div></div>
+        <div class="how-step fade-up fade-up-delay-2"><div class="how-step-num">03</div><div><div class="how-step-title">A driver picks it up</div><div class="how-step-body">Nearby approved drivers see your job and accept it. You're notified the moment someone is on their way.</div></div></div>
+        <div class="how-step fade-up fade-up-delay-3"><div class="how-step-num">04</div><div><div class="how-step-title">Track it live, get proof</div><div class="how-step-body">Watch the delivery in real time on your dashboard. When delivered, you get a photo confirmation and digital receipt.</div></div></div>
+      </div>
+      <div class="how-visual">
+        <div class="how-big-text">Your business,<br><em>delivered.</em></div>
+        <span class="how-tag">— without the headache</span>
+        <div class="how-checklist">
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">No tech skills required — if you can WhatsApp, you can Rheo</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">Transparent pricing — no hidden fees, ever</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">MTN MoMo, Airtel Money, Visa &amp; Mastercard supported</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">Analytics dashboard shows what's working for you</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Driver tab -->
+    <div class="how-content" id="tab-driver">
+      <div class="how-steps">
+        <div class="how-step"><div class="how-step-num">01</div><div><div class="how-step-title">Apply on the website</div><div class="how-step-body">Fill in your details here on rheo.co. We send you an SMS with a link to download the driver app to complete your application.</div></div></div>
+        <div class="how-step"><div class="how-step-num">02</div><div><div class="how-step-title">Get verified in 24 hours</div><div class="how-step-body">Upload your National ID, driver's license, and vehicle documents. Our team reviews and approves you quickly.</div></div></div>
+        <div class="how-step"><div class="how-step-num">03</div><div><div class="how-step-title">Pick up jobs near you</div><div class="how-step-body">Browse available jobs and accept the ones that work for you. You're always in control of what you take.</div></div></div>
+        <div class="how-step"><div class="how-step-num">04</div><div><div class="how-step-title">Get paid to your wallet</div><div class="how-step-body">Earnings land in your Rheo wallet after each delivery. Withdraw to MTN MoMo or Airtel Money anytime from 50,000 UGX.</div></div></div>
+      </div>
+      <div class="how-visual">
+        <div class="how-big-text">Drive on your<br>own <em>terms.</em></div>
+        <span class="how-tag">— earn more, work smarter</span>
+        <div class="how-checklist">
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">Choose your own hours — full time or side hustle</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">Only 1% platform fee on your earnings</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">Instant wallet — withdraw to MoMo anytime</div></div>
+          <div class="how-check"><div class="how-check-icon">✓</div><div class="how-check-text">In-app support whenever you need it</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOR BUSINESSES ═══ -->
+<section class="businesses" id="businesses">
+  <div class="container">
+    <div class="section-label fade-up">For businesses</div>
+    <h2 style="font-size:clamp(32px,4vw,52px);color:var(--forest-dark);max-width:640px;" class="fade-up fade-up-delay-1">Every small business deserves to deliver like a big brand.</h2>
+    <p style="font-size:16px;color:var(--ink-soft);max-width:560px;line-height:1.8;margin-top:16px;" class="fade-up fade-up-delay-2">Built for Uganda's retailers, food makers, and creators. Affordable pricing, no contract, cancel anytime.</p>
+    <div class="biz-grid">
+      <div class="biz-card fade-up"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20H6a2 2 0 01-2-2V6a2 2 0 012-2h4l2 3h6a2 2 0 012 2v3"/><path d="M14 18h7m-3-3l3 3-3 3"/></svg></div><div class="biz-title">Live Delivery Queue</div><div class="biz-body">See every active delivery on a live map. Know exactly where your package is, who's carrying it, and when it arrives.</div></div>
+      <div class="biz-card fade-up fade-up-delay-1"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div><div class="biz-title">Analytics Dashboard</div><div class="biz-body">Track deliveries, spending, and driver performance. Make better decisions with clear, honest data — not vanity metrics.</div></div>
+      <div class="biz-card fade-up fade-up-delay-2"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div><div class="biz-title">Scheduled Pickups</div><div class="biz-body">Book pickups in advance. No more last-minute panic. Schedule deliveries around your business rhythm.</div></div>
+      <div class="biz-card fade-up fade-up-delay-1"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div class="biz-title">Team Access</div><div class="biz-body">Add your staff as dispatchers or ops managers. Each with their own role and access level — you stay in control.</div></div>
+      <div class="biz-card fade-up fade-up-delay-2"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div><div class="biz-title">Flexible Payments</div><div class="biz-body">Pay with MTN MoMo, Airtel Money, Visa, or Mastercard. No bank account required to get started.</div></div>
+      <div class="biz-card fade-up fade-up-delay-3"><div class="biz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><div class="biz-title">Proof of Delivery</div><div class="biz-body">Photo confirmation on every delivery. Share with your customers to build trust and reduce disputes.</div></div>
+    </div>
+    <div style="text-align:center;margin-top:48px;">
+      <a href="/business/register" class="btn btn-green btn-lg">Start Free Trial</a>
+      <a href="#contact" class="btn btn-lg" style="color:var(--forest-dark);border:1.5px solid var(--forest-light);background:transparent;margin-left:12px;">Request a Demo</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ AUDIENCE ═══ -->
+<section class="audience">
+  <div class="container">
+    <div class="section-label light fade-up">Who Rheo is for</div>
+    <h2 style="font-size:clamp(28px,4vw,48px);color:var(--white);max-width:560px;" class="fade-up fade-up-delay-1">Whether you sell, make, or move — Rheo works for you.</h2>
+    <div class="audience-grid">
+      <div class="audience-card"><div class="audience-icon">🛍️</div><div class="audience-title">Retailers</div><div class="audience-body">Boutiques, pharmacies, general stores, supermarkets. Let your customers order and receive without leaving home.</div><div class="audience-perks"><div class="audience-perk">Scheduled daily pickups</div><div class="audience-perk">Live tracking for your customers</div><div class="audience-perk">Proof of delivery photos</div></div><a href="/business/register" class="audience-cta">Get started <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+      <div class="audience-card"><div class="audience-icon">🍲</div><div class="audience-title">Food Makers</div><div class="audience-body">Home chefs, caterers, cloud kitchens. Get hot food to customers fast — before it loses that freshness.</div><div class="audience-perks"><div class="audience-perk">Priority food delivery</div><div class="audience-perk">ETA notifications for customers</div><div class="audience-perk">Multiple daily runs</div></div><a href="/business/register" class="audience-cta">Get started <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+      <div class="audience-card"><div class="audience-icon">🎨</div><div class="audience-title">Creators</div><div class="audience-body">Fashion designers, artisans, crafters selling on Instagram or WhatsApp. Ship professionally without the logistics headache.</div><div class="audience-perks"><div class="audience-perk">Careful handling for fragile items</div><div class="audience-perk">Flat-rate delivery options</div><div class="audience-perk">Branded delivery confirmations</div></div><a href="/business/register" class="audience-cta">Get started <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+      <div class="audience-card"><div class="audience-icon">🚗</div><div class="audience-title">Drivers</div><div class="audience-body">Own a boda, car, or van? Join Rheo and earn on your schedule. Pick the jobs you want, keep 99% of what you make.</div><div class="audience-perks"><div class="audience-perk">Work your own hours</div><div class="audience-perk">Instant wallet payouts to MoMo</div><div class="audience-perk">Only 1% platform fee</div></div><a href="/drivers/apply" class="audience-cta">Apply to drive <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRICING ═══ -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-label fade-up">Pricing</div>
+    <h2 style="font-size:clamp(32px,4vw,52px);color:var(--forest-dark);" class="fade-up fade-up-delay-1">Fair pricing for every business.</h2>
+    <p style="font-size:16px;color:var(--ink-soft);max-width:520px;line-height:1.8;margin-top:12px;" class="fade-up fade-up-delay-2">No contracts. No setup fees. Cancel anytime. Start with the plan that fits today — upgrade as you grow.</p>
+    <div class="pricing-toggle fade-up fade-up-delay-2" style="margin-top:36px;">
+      <span class="toggle-label active" id="toggle-monthly">Monthly</span>
+      <div class="toggle-switch" id="billingToggle" onclick="toggleBilling()"></div>
+      <span class="toggle-label" id="toggle-annual">Annual</span>
+      <span class="save-badge">Save 17%</span>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card fade-up">
+        <div class="pricing-name">Starter</div>
+        <div class="pricing-price" id="starter-price">UGX 150k</div>
+        <div class="pricing-period" id="starter-period">per month · up to 100 jobs</div>
+        <div class="pricing-desc">Perfect for solo entrepreneurs and small shops just getting started with delivery.</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li class="pricing-feature">Up to 100 deliveries/month</li>
+          <li class="pricing-feature">3 team members</li>
+          <li class="pricing-feature">Live tracking</li>
+          <li class="pricing-feature">Proof of delivery</li>
+          <li class="pricing-feature">Email support</li>
+          <li class="pricing-feature">Mobile app access</li>
+        </ul>
+        <a href="/business/register?plan=starter" class="btn btn-green" style="width:100%;justify-content:center;">Get Started</a>
+      </div>
+      <div class="pricing-card featured fade-up fade-up-delay-1">
+        <div class="pricing-badge">Most Popular</div>
+        <div class="pricing-name">Growth</div>
+        <div class="pricing-price" id="growth-price">UGX 400k</div>
+        <div class="pricing-period" id="growth-period">per month · up to 500 jobs</div>
+        <div class="pricing-desc">For growing businesses that need more volume, smarter analytics, and a bigger team.</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li class="pricing-feature">Up to 500 deliveries/month</li>
+          <li class="pricing-feature">10 team members</li>
+          <li class="pricing-feature">Advanced analytics</li>
+          <li class="pricing-feature">Priority support</li>
+          <li class="pricing-feature">Bulk job upload</li>
+          <li class="pricing-feature">Driver rating filters</li>
+        </ul>
+        <a href="/business/register?plan=growth" class="btn btn-primary" style="width:100%;justify-content:center;">Get Started</a>
+      </div>
+      <div class="pricing-card fade-up fade-up-delay-2">
+        <div class="pricing-name">Enterprise</div>
+        <div class="pricing-price" id="enterprise-price">UGX 1.2M</div>
+        <div class="pricing-period" id="enterprise-period">per month · unlimited jobs</div>
+        <div class="pricing-desc">For high-volume businesses that need API access, dedicated support, and custom branding.</div>
+        <div class="pricing-divider"></div>
+        <ul class="pricing-features">
+          <li class="pricing-feature">Unlimited deliveries</li>
+          <li class="pricing-feature">Unlimited team members</li>
+          <li class="pricing-feature">API &amp; webhook access</li>
+          <li class="pricing-feature">Dedicated account manager</li>
+          <li class="pricing-feature">Custom branding</li>
+          <li class="pricing-feature">SLA guarantee</li>
+        </ul>
+        <a href="#contact" class="btn btn-green" style="width:100%;justify-content:center;">Contact Sales</a>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--ink-muted);margin-top:32px;">All plans include MTN MoMo, Airtel Money, Visa &amp; Mastercard. 1% platform commission on driver earnings is handled automatically.</p>
+  </div>
+</section>
+
+<!-- ═══ TESTIMONIALS ═══ -->
+<section class="testimonials">
+  <div class="container">
+    <div class="section-label fade-up">What they say</div>
+    <h2 style="font-size:clamp(28px,4vw,44px);color:var(--forest-dark);" class="fade-up fade-up-delay-1">Businesses already flowing.</h2>
+    <div class="testi-grid">
+      <div class="testi-card fade-up"><div class="testi-quote">"Before Rheo, I was using random boda bodas who'd disappear with my products. Now I have proof of every delivery and my customers trust me more."</div><div class="testi-author"><div class="testi-avatar">A</div><div><div class="testi-name">Amina Nakato</div><div class="testi-biz">Boutique owner, Ntinda</div><div class="testi-stars">★★★★★</div></div></div></div>
+      <div class="testi-card fade-up fade-up-delay-1"><div class="testi-quote">"I doubled my daily orders because I stopped worrying about delivery. Rheo just handles it. The live tracking is what my customers love most."</div><div class="testi-author"><div class="testi-avatar" style="background:var(--blue-light);color:var(--blue-dark);">J</div><div><div class="testi-name">Joseph Tumwine</div><div class="testi-biz">Home chef, Kampala</div><div class="testi-stars">★★★★★</div></div></div></div>
+      <div class="testi-card fade-up fade-up-delay-2"><div class="testi-quote">"As a driver, Rheo is the most honest platform I've used. Only 1% fee, I choose my jobs, and money hits my MoMo same day. Simple."</div><div class="testi-author"><div class="testi-avatar" style="background:var(--yellow-light);color:var(--yellow-dark);">E</div><div><div class="testi-name">Emmanuel Otieno</div><div class="testi-biz">Driver, Jinja</div><div class="testi-stars">★★★★★</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ DRIVERS ═══ -->
+<section class="drivers-section" id="drivers">
+  <div class="container">
+    <div class="drivers-inner">
+      <div>
+        <div class="section-label fade-up">For drivers</div>
+        <h2 style="font-size:clamp(32px,4vw,48px);color:var(--forest-dark);margin-bottom:16px;" class="fade-up fade-up-delay-1">Drive on your own terms.<br><em style="font-style:italic;color:var(--forest-mid);">Earn what you deserve.</em></h2>
+        <p style="font-size:16px;color:var(--ink-soft);line-height:1.8;" class="fade-up fade-up-delay-2">Rheo is Uganda's most driver-friendly delivery platform. No gatekeeping, no confusing fees, no chasing payments. Just honest work and honest pay.</p>
+        <div class="drivers-steps fade-up fade-up-delay-2">
+          <div class="driver-step"><div class="driver-step-num">1</div><div><div class="driver-step-title">Apply here — takes 5 minutes</div><div class="driver-step-body">Fill your details. We SMS you a link to download the driver app and complete your application.</div></div></div>
+          <div class="driver-step"><div class="driver-step-num">2</div><div><div class="driver-step-title">Get verified in 24 hours</div><div class="driver-step-body">Upload your ID and vehicle docs through the app. Our team reviews quickly.</div></div></div>
+          <div class="driver-step"><div class="driver-step-num">3</div><div><div class="driver-step-title">Start earning immediately</div><div class="driver-step-body">Pick jobs near you, deliver, and watch your wallet grow. Withdraw to MoMo anytime from 50,000 UGX.</div></div></div>
+        </div>
+        <div style="margin-top:32px;" class="fade-up fade-up-delay-3"><a href="/drivers/apply" class="btn btn-green btn-lg">Apply to Drive</a></div>
+      </div>
+      <div class="drivers-earnings fade-up fade-up-delay-2">
+        <div class="earnings-title">Sample weekly earnings</div>
+        <div class="earnings-amount">UGX 420k</div>
+        <div class="earnings-period">Based on 20 deliveries/week average</div>
+        <div class="earnings-breakdown">
+          <div class="earnings-row"><div class="earnings-row-label">20 deliveries × avg UGX 21,000</div><div class="earnings-row-val">UGX 420,000</div></div>
+          <div class="earnings-row"><div class="earnings-row-label">Rheo platform fee (1%)</div><div class="earnings-row-val" style="color:rgba(255,255,255,0.4)">− UGX 4,200</div></div>
+          <div class="earnings-row" style="border:1px solid rgba(245,200,66,0.2);background:rgba(245,200,66,0.06);"><div class="earnings-row-label" style="color:var(--yellow);font-weight:600;">You take home</div><div class="earnings-row-val positive">UGX 415,800</div></div>
+        </div>
+        <div class="earnings-note">* Earnings vary by location, vehicle type, and hours worked. Illustrative example.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TRUST ═══ -->
+<section class="trust">
+  <div class="container">
+    <div class="section-label fade-up">Why trust Rheo</div>
+    <h2 style="font-size:clamp(28px,4vw,44px);color:var(--forest-dark);max-width:560px;" class="fade-up fade-up-delay-1">Built on reliability. Grown on community.</h2>
+    <div class="trust-grid fade-up fade-up-delay-2">
+      <div class="trust-item"><div class="trust-icon">🔒</div><div class="trust-title">KYC Verified Drivers</div><div class="trust-body">Every driver is identity-verified before they can accept a single job. Your packages are always in trusted hands.</div></div>
+      <div class="trust-item"><div class="trust-icon">📍</div><div class="trust-title">Live GPS Tracking</div><div class="trust-body">Watch every delivery in real time. Share a tracking link with your customer so they're never left wondering.</div></div>
+      <div class="trust-item"><div class="trust-icon">💳</div><div class="trust-title">Secure Payments</div><div class="trust-body">All payments processed via Flutterwave with bank-grade encryption. MTN MoMo, Airtel, Visa, and Mastercard.</div></div>
+      <div class="trust-item"><div class="trust-icon">📞</div><div class="trust-title">Real Support</div><div class="trust-body">Not a chatbot. Real customer care agents based in Kampala who know the delivery landscape inside out.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA BAND ═══ -->
+<section class="cta-band">
+  <div class="container">
+    <div class="cta-band-inner">
+      <div>
+        <h2 class="cta-band-h">Ready to start delivering?</h2>
+        <p class="cta-band-sub">Join Ugandan businesses already flowing with Rheo. No contracts. No setup fees.</p>
+      </div>
+      <div class="cta-band-actions">
+        <a href="/business/register" class="btn btn-green btn-lg">Start Free Trial</a>
+        <a href="/drivers/apply" class="btn btn-lg" style="background:rgba(15,48,32,0.12);color:var(--forest-dark);border:1.5px solid rgba(15,48,32,0.2);">Become a Driver</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CONTACT ═══ -->
+<section class="contact" id="contact">
+  <div class="container">
+    <div class="contact-inner">
+      <div>
+        <div class="section-label light">Get in touch</div>
+        <h2 class="contact-h">Let's talk about your business.</h2>
+        <p class="contact-sub">Want a demo? Have questions about pricing? Need a custom Enterprise plan? Our team in Kampala is ready to help.</p>
+        <div class="contact-info">
+          <div class="contact-info-item"><div class="contact-info-icon">📍</div><div><div class="contact-info-label">Headquarters</div><div class="contact-info-value">Kampala, Uganda</div></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon">✉️</div><div><div class="contact-info-label">Email</div><div class="contact-info-value">hello@rheo.co</div></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon">📱</div><div><div class="contact-info-label">WhatsApp</div><div class="contact-info-value">+256 700 000 000</div></div></div>
+          <div class="contact-info-item"><div class="contact-info-icon">🕐</div><div><div class="contact-info-label">Support Hours</div><div class="contact-info-value">Mon–Sat, 7am–9pm EAT</div></div></div>
+        </div>
+      </div>
+      <div class="contact-form">
+        <div class="form-title">Request a demo</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">First name</label><input class="form-input" type="text" placeholder="Sarah"></div>
+          <div class="form-group"><label class="form-label">Last name</label><input class="form-input" type="text" placeholder="Nakato"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Business name</label><input class="form-input" type="text" placeholder="Sarah's Boutique"></div>
+        <div class="form-group"><label class="form-label">Phone / WhatsApp</label><input class="form-input" type="tel" placeholder="+256 700 000 000"></div>
+        <div class="form-group"><label class="form-label">Business type</label><select class="form-select"><option value="">Select your business type</option><option>Retail / Shop</option><option>Food &amp; Catering</option><option>Fashion &amp; Crafts</option><option>Pharmacy / Health</option><option>E-commerce</option><option>Other</option></select></div>
+        <div class="form-group"><label class="form-label">Monthly deliveries (estimate)</label><select class="form-select"><option value="">How many deliveries per month?</option><option>Under 50</option><option>50–200</option><option>200–500</option><option>500+</option></select></div>
+        <div class="form-group"><label class="form-label">Message (optional)</label><textarea class="form-input form-textarea" placeholder="Tell us about your delivery needs..."></textarea></div>
+        <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;" onclick="submitDemo(this)">
+          Request Demo
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div>
+        <svg class="footer-logo-svg logo-light" viewBox="0 0 520 180" role="img" aria-label="Rheo Transport Services">
+          <use href="#rheo-logo-full"/>
+        </svg>
+        <div class="footer-tagline-text">Move What Matters</div>
+        <p class="footer-desc">Uganda's friendliest last-mile delivery platform. Built for small businesses in Kampala, Jinja, and beyond.</p>
+      </div>
+      <div>
+        <div class="footer-col-title">Platform</div>
+        <ul class="footer-links">
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="/business/register">For Businesses</a></li>
+          <li><a href="/drivers/apply">For Drivers</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="/about">About Rheo</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="/careers">Careers</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="/help">Help Centre</a></li>
+          <li><a href="/business/login">Business Login</a></li>
+          <li><a href="/drivers/login">Driver Login</a></li>
+          <li><a href="/admin" style="opacity:0.4;font-size:11px;">Staff Portal ↗</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 Rheo Transport Services Ltd. Kampala, Uganda.</div>
+      <div class="footer-legal">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/cookies">Cookie Policy</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll
+const nav = document.getElementById('nav')
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40))
+
+// Mobile menu
+function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open') }
+function closeMenu() { document.getElementById('mobileMenu').classList.remove('open') }
+
+// Tab switcher
+function switchTab(tab) {
+  document.querySelectorAll('.how-tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.how-content').forEach(c => c.classList.remove('active'))
+  document.querySelectorAll('.how-tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(tab)) t.classList.add('active')
+  })
+  document.getElementById('tab-' + tab).classList.add('active')
+}
+
+// Billing toggle
+let isAnnual = false
+const prices = {
+  starter:    { m:'UGX 150k', a:'UGX 125k', mp:'per month · up to 100 jobs', ap:'per month, billed annually · up to 100 jobs' },
+  growth:     { m:'UGX 400k', a:'UGX 333k', mp:'per month · up to 500 jobs', ap:'per month, billed annually · up to 500 jobs' },
+  enterprise: { m:'UGX 1.2M', a:'UGX 1.0M', mp:'per month · unlimited jobs', ap:'per month, billed annually · unlimited jobs' },
+}
+function toggleBilling() {
+  isAnnual = !isAnnual
+  document.getElementById('billingToggle').classList.toggle('annual', isAnnual)
+  document.getElementById('toggle-monthly').classList.toggle('active', !isAnnual)
+  document.getElementById('toggle-annual').classList.toggle('active', isAnnual)
+  Object.entries(prices).forEach(([plan, v]) => {
+    const pe = document.getElementById(`${plan}-price`)
+    const pp = document.getElementById(`${plan}-period`)
+    if (pe) pe.textContent = isAnnual ? v.a : v.m
+    if (pp) pp.textContent = isAnnual ? v.ap : v.mp
+  })
+}
+
+// Scroll animations
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
+  { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+)
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el))
+
+// Demo form
+function submitDemo(btn) {
+  btn.innerHTML = 'Sending...'
+  btn.disabled = true
+  setTimeout(() => {
+    btn.innerHTML = '✓ Request sent! We\'ll be in touch within 24 hours.'
+    btn.style.background = 'var(--forest)'
+    btn.style.color = 'var(--white)'
+  }, 1500)
+}
+</script>
+</body>
+</html>
