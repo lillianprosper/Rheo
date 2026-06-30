@@ -1,11 +1,14 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 
-import { query, queryOne } from '../config/database'
+import { query, queryOne, withTransaction } from '../config/database'
 import { authenticate, requirePermission } from '../middleware/rbac'
-import { NotFoundError, AppError, success, paginated } from '../utils/errors'
+import { NotFoundError, AppError, ConflictError, success, paginated } from '../utils/errors'
 import { auditLog } from '../utils/audit'
 import { getPresignedUrl } from '../services/storage.service'
+import { sendEmail } from '../services/email.service'
+import { generateToken } from '../utils/encryption'
 
 export const adminRouter = Router()
 const requireStaff = authenticate('staff')
@@ -144,6 +147,217 @@ adminRouter.post(
   }
 )
 
+// ─── ADMIN: Staff management (list, create, edit) ─────────────────────────────
+
+adminRouter.get(
+  '/staff',
+  requirePermission('staff.read'),
+  async (req: Request, res: Response) => {
+    const { page = '1', limit = '20', role, search, isActive } = req.query as Record<string, string>
+    const offset = (parseInt(page) - 1) * parseInt(limit)
+
+    let where = 'WHERE 1=1'
+    const params: unknown[] = []
+
+    if (role)     { params.push(role);     where += ` AND s.role = $${params.length}` }
+    if (isActive) { params.push(isActive === 'true'); where += ` AND s.is_active = $${params.length}` }
+    if (search) {
+      params.push(`%${search}%`)
+      where += ` AND (s.first_name ILIKE $${params.length} OR s.last_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`
+    }
+
+    params.push(parseInt(limit), offset)
+    const staffList = await query(
+      `SELECT s.id, s.role, s.first_name, s.last_name, s.employee_id, s.job_title,
+              s.department, s.is_active, s.hired_at, s.created_at,
+              u.email, u.last_login_at, u.two_fa_enabled
+       FROM staff s
+       JOIN auth_users u ON u.id = s.auth_user_id
+       ${where}
+       ORDER BY s.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    )
+
+    const [{ count }] = await query<{ count: string }>(
+      `SELECT COUNT(*) FROM staff s JOIN auth_users u ON u.id = s.auth_user_id ${where}`,
+      params.slice(0, -2)
+    )
+    return paginated(res, staffList, parseInt(count), parseInt(page), parseInt(limit))
+  }
+)
+
+adminRouter.post(
+  '/staff',
+  requirePermission('staff.*'),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      email:       z.string().email(),
+      firstName:   z.string().min(2),
+      lastName:    z.string().min(2),
+      role:        z.enum(['admin', 'finance', 'hr_payroll', 'customer_care']),
+      employeeId:  z.string().min(2),
+      jobTitle:    z.string().optional(),
+      department:  z.string().optional(),
+      phone:       z.string().optional(),
+      hiredAt:     z.string().optional(),
+    })
+    const data = schema.parse(req.body)
+
+    // Only super_admin can create admin role
+    if (data.role === 'admin' && req.staffRole !== 'super_admin') {
+      throw new AppError('Only Super Admin can create Admin accounts', 403)
+    }
+
+    const existing = await queryOne(`SELECT id FROM auth_users WHERE email = $1`, [data.email.toLowerCase()])
+    if (existing) throw new ConflictError('Email already in use')
+
+    const tempPassword = `Rheo${generateToken(4).toUpperCase()}!${Math.floor(Math.random() * 900) + 100}`
+    const passwordHash = await bcrypt.hash(tempPassword, 12)
+
+    const newStaff = await withTransaction(async (client) => {
+      const authUser = await client.query(
+        `INSERT INTO auth_users (email, password_hash, surface) VALUES ($1, $2, 'staff') RETURNING id`,
+        [data.email.toLowerCase(), passwordHash]
+      )
+      const staff = await client.query(
+        `INSERT INTO staff
+          (auth_user_id, role, first_name, last_name, employee_id, job_title, department, phone, hired_at, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, role, first_name, last_name, employee_id`,
+        [
+          authUser.rows[0].id, data.role, data.firstName, data.lastName,
+          data.employeeId, data.jobTitle, data.department, data.phone,
+          data.hiredAt || null, req.staffId,
+        ]
+      )
+      return staff.rows[0]
+    })
+
+    // Send welcome email with temp password
+    await sendEmail({
+      to: data.email,
+      template: 'staff_invite',
+      data: {
+        firstName: data.firstName,
+        role: data.role,
+        tempPassword,
+        loginUrl: `${process.env.ADMIN_URL}/login`,
+        message: 'Please change your password and enable 2FA immediately after logging in.',
+      },
+    })
+
+    await auditLog({
+      actorId: req.staffId,
+      actorType: 'staff',
+      actorRole: req.staffRole,
+      action: 'staff.created',
+      resourceType: 'staff',
+      resourceId: newStaff.id,
+      newData: { email: data.email, role: data.role, employeeId: data.employeeId },
+    })
+
+    return success(res, newStaff, 201)
+  }
+)
+
+adminRouter.patch(
+  '/staff/:staffId',
+  requirePermission('staff.*'),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      role:       z.enum(['admin', 'finance', 'hr_payroll', 'customer_care']).optional(),
+      firstName:  z.string().min(2).optional(),
+      lastName:   z.string().min(2).optional(),
+      jobTitle:   z.string().optional(),
+      department: z.string().optional(),
+      phone:      z.string().optional(),
+      isActive:   z.boolean().optional(),
+    })
+    const data = schema.parse(req.body)
+
+    // Cannot edit own role
+    if (req.params.staffId === req.staffId && data.role) {
+      throw new AppError('You cannot change your own role', 400)
+    }
+
+    const target = await queryOne<any>(`SELECT * FROM staff WHERE id = $1`, [req.params.staffId])
+    if (!target) throw new NotFoundError('Staff member')
+
+    // Only super_admin can edit admin role
+    if (target.role === 'super_admin' && req.staffRole !== 'super_admin') {
+      throw new AppError('Cannot edit Super Admin accounts', 403)
+    }
+
+    const fields: string[] = []
+    const values: unknown[] = []
+
+    if (data.role !== undefined)      { fields.push(`role = $${fields.length + 2}`);       values.push(data.role) }
+    if (data.firstName !== undefined) { fields.push(`first_name = $${fields.length + 2}`); values.push(data.firstName) }
+    if (data.lastName !== undefined)  { fields.push(`last_name = $${fields.length + 2}`);  values.push(data.lastName) }
+    if (data.jobTitle !== undefined)  { fields.push(`job_title = $${fields.length + 2}`);  values.push(data.jobTitle) }
+    if (data.department !== undefined){ fields.push(`department = $${fields.length + 2}`); values.push(data.department) }
+    if (data.phone !== undefined)     { fields.push(`phone = $${fields.length + 2}`);      values.push(data.phone) }
+    if (data.isActive !== undefined)  { fields.push(`is_active = $${fields.length + 2}`);  values.push(data.isActive) }
+
+    if (fields.length === 0) return success(res, { message: 'No changes' })
+
+    await query(
+      `UPDATE staff SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $1`,
+      [req.params.staffId, ...values]
+    )
+
+    if (data.isActive === false) {
+      await query(`UPDATE auth_users SET is_active = false WHERE id = $1`, [target.auth_user_id])
+      await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1`, [target.auth_user_id])
+    }
+
+    await auditLog({
+      actorId: req.staffId,
+      actorType: 'staff',
+      actorRole: req.staffRole,
+      action: 'staff.updated',
+      resourceType: 'staff',
+      resourceId: req.params.staffId,
+      oldData: target,
+      newData: data,
+    })
+
+    return success(res, { message: 'Staff member updated' })
+  }
+)
+
+// ─── ADMIN: Staff permissions (granular overrides) ────────────────────────────
+
+adminRouter.post(
+  '/staff/:staffId/permissions',
+  requirePermission('staff.*'),
+  async (req: Request, res: Response) => {
+    const { permission, granted } = z.object({
+      permission: z.string().min(3),
+      granted:    z.boolean(),
+    }).parse(req.body)
+
+    await query(
+      `INSERT INTO staff_permissions (staff_id, permission, granted, granted_by)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (staff_id, permission) DO UPDATE SET granted = $3, granted_by = $4`,
+      [req.params.staffId, permission, granted, req.staffId]
+    )
+
+    await auditLog({
+      actorId: req.staffId,
+      actorType: 'staff',
+      actorRole: req.staffRole,
+      action: 'staff.permission_changed',
+      resourceType: 'staff',
+      resourceId: req.params.staffId,
+      newData: { permission, granted },
+    })
+
+    return success(res, { message: `Permission '${permission}' ${granted ? 'granted' : 'revoked'}` })
+  }
+)
+
 // ─── ADMIN: Audit logs ────────────────────────────────────────────────────────
 
 adminRouter.get(
@@ -268,7 +482,6 @@ adminRouter.get(
   '/config',
   requirePermission('staff.read'),
   async (_req: Request, res: Response) => {
-    // Return safe, non-secret platform configuration values
     return success(res, {
       platform: {
         name:               'Rheo Transport',
