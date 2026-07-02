@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "next": "^16.2.9"
   },
   "allowScripts": {
