@@ -2,80 +2,63 @@
 
 /**
  * Rheo Admin — Platform Dashboard
- * Place at: apps/admin/src/app/dashboard/page.tsx
+ * Place at: apps/admin/src/app/dashboard/page.tsx  (replaces previous version)
  *
- * Data source: GET {NEXT_PUBLIC_API_URL}/admin/dashboard (staff JWT, analytics.* permission)
+ * CONTRACT (verified against the live API on 2026-07-05, not assumed):
+ *   GET {NEXT_PUBLIC_API_URL}/admin/dashboard →
+ *   { success: true, data: { approved_drivers, pending_drivers, online_drivers,
+ *     active_businesses, pending_businesses, jobs_today, live_jobs,
+ *     commission_today_ugx, pending_withdrawals, open_tickets,
+ *     driver_kyc_pending, business_kyc_pending } }   — flat keys, numeric strings.
  *
- * Security posture:
- *  - Renders nothing until a rheo_access cookie exists; missing cookie or any
- *    401 hard-redirects to /login. The API's requirePermission gate is the
- *    real authority — this page holds zero role logic.
- *  - No dashboard data is ever written to localStorage/sessionStorage.
- *  - Audit strings render through React text nodes only (auto-escaped).
+ * Validation guardrail: the payload is parsed through a Zod schema. Every
+ * field coerces to a number and falls back to 0 on absence or garbage, so a
+ * future contract drift renders as zeros (visibly wrong) instead of crashing
+ * (fatally wrong) — and the test suite pins the schema.
  *
- * Capacity posture:
- *  - Manual refresh only. The endpoint runs live aggregate scans, so this
- *    page deliberately does NOT auto-poll (self-DoS guard). Post-launch this
- *    endpoint should be backed by platform_analytics_daily snapshots.
+ * Security posture: client-side auth gate only gates rendering; the API's
+ * requirePermission('analytics.*') is the real authority. 401 → /login via
+ * the mockable navigation seam. No data persisted to any browser storage.
+ * All rendered values are numbers — zero user-supplied strings on this page,
+ * so no XSS surface.
+ *
+ * Capacity posture: manual refresh only (endpoint runs live aggregates).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
 import { redirectToLogin } from './navigation'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
-// ── Types (mirror packages/api admin.routes.ts GET /dashboard) ────────────────
-interface ActivityEntry {
-  action: string
-  actor_type: string
-  actor_role: string | null
-  resource_type: string | null
-  created_at: string
-}
+// ── Contract schema (source of truth for this page) ──────────────────────────
+const kpi = z.coerce.number().catch(0)
 
-interface DashboardData {
-  jobs:        { queued: unknown; in_transit: unknown; delivered_today: unknown }
-  drivers:     { approved: unknown; pending: unknown; online: unknown }
-  businesses:  { active: unknown; pending: unknown }
-  revenue:     { today: unknown }
-  withdrawals: { count: unknown; total: unknown }
-  tickets:     { open: unknown; critical: unknown }
-  recentActivity: ActivityEntry[]
-}
+const DashboardSchema = z
+  .object({
+    approved_drivers:     kpi,
+    pending_drivers:      kpi,
+    online_drivers:       kpi,
+    active_businesses:    kpi,
+    pending_businesses:   kpi,
+    jobs_today:           kpi,
+    live_jobs:            kpi,
+    commission_today_ugx: kpi,
+    pending_withdrawals:  kpi,
+    open_tickets:         kpi,
+    driver_kyc_pending:   kpi,
+    business_kyc_pending: kpi,
+  })
+  .catch({
+    approved_drivers: 0, pending_drivers: 0, online_drivers: 0,
+    active_businesses: 0, pending_businesses: 0, jobs_today: 0, live_jobs: 0,
+    commission_today_ugx: 0, pending_withdrawals: 0, open_tickets: 0,
+    driver_kyc_pending: 0, business_kyc_pending: 0,
+  })
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-/** pg returns bigint counts as strings — normalise defensively, never NaN. */
-const num = (v: unknown): number => {
-  const n = Number(v ?? 0)
-  return Number.isFinite(n) ? n : 0
-}
-const ugx = (v: unknown): string => `UGX ${num(v).toLocaleString('en-UG')}`
+type DashboardData = z.infer<typeof DashboardSchema>
 
-const timeAgo = (iso: string): string => {
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000))
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
-
-/**
- * Contract guard: the UI must never crash on an unexpected API shape.
- * Missing sections coerce to empty objects (num() then yields 0) and a
- * missing/invalid activity list coerces to []. A wrong shape renders as
- * zeros — visibly wrong, safely wrong — instead of a client-side exception.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const normalize = (raw: any): DashboardData => ({
-  jobs:        raw?.jobs        ?? {},
-  drivers:     raw?.drivers     ?? {},
-  businesses:  raw?.businesses  ?? {},
-  revenue:     raw?.revenue     ?? {},
-  withdrawals: raw?.withdrawals ?? {},
-  tickets:     raw?.tickets     ?? {},
-  recentActivity: Array.isArray(raw?.recentActivity) ? raw.recentActivity : [],
-})
+const ugx = (v: number): string => `UGX ${v.toLocaleString('en-UG')}`
 
 const getAccessToken = (): string | null => {
   const m = document.cookie.match(/(?:^|;\s*)rheo_access=([^;]*)/)
@@ -121,13 +104,12 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.status === 401) {
-        // Token expired or revoked — the API is the authority; re-authenticate.
         redirectToLogin()
         return
       }
       if (!res.ok) throw new Error(`API responded with ${res.status}`)
       const body = await res.json()
-      setData(normalize(body?.data))
+      setData(DashboardSchema.parse(body?.data ?? {}))
     } catch {
       setError('Could not load dashboard data.')
     } finally {
@@ -136,7 +118,6 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    // Auth gate runs client-side only (cookie is not HttpOnly by design, for now).
     if (!getAccessToken()) {
       redirectToLogin()
       return
@@ -145,7 +126,6 @@ export default function DashboardPage() {
     void load()
   }, [load])
 
-  // Render nothing while unauthenticated — no flash of protected UI.
   if (!authorized.current && !loading && !data && !error) return null
 
   return (
@@ -171,12 +151,10 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Loading */}
         {loading && !data && (
           <p style={{ color: 'rgba(255,255,255,0.7)' }}>Loading dashboard…</p>
         )}
 
-        {/* Error + Retry */}
         {error && (
           <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '1rem 1.25rem',
             borderRadius: '8px', marginBottom: '1.5rem', borderLeft: '3px solid #DC2626',
@@ -190,49 +168,20 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* KPI grid */}
         {data && (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1rem', marginBottom: '2rem' }}>
-              <Kpi label="Drivers online"        value={String(num(data.drivers.online))} />
-              <Kpi label="Drivers pending KYC"   value={String(num(data.drivers.pending))} accent={num(data.drivers.pending) > 0} />
-              <Kpi label="Active businesses"     value={String(num(data.businesses.active))} />
-              <Kpi label="Jobs queued"           value={String(num(data.jobs.queued))} />
-              <Kpi label="Jobs in transit"       value={String(num(data.jobs.in_transit))} />
-              <Kpi label="Delivered today"       value={String(num(data.jobs.delivered_today))} />
-              <Kpi label="Revenue today"         value={ugx(data.revenue.today)} />
-              <Kpi label="Pending withdrawals"   value={`${num(data.withdrawals.count)} · ${ugx(data.withdrawals.total)}`} accent={num(data.withdrawals.count) > 0} />
-              <Kpi label="Open tickets"          value={`${num(data.tickets.open)} (${num(data.tickets.critical)} critical)`} accent={num(data.tickets.critical) > 0} />
-            </div>
-
-            {/* Recent activity — audit strings rendered as text nodes only */}
-            <div style={{ background: '#FFFFFF', borderRadius: '12px', padding: '1.5rem',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}>
-              <h2 style={{ fontSize: '1rem', color: '#0F2018', margin: '0 0 1rem' }}>Recent activity</h2>
-              {data.recentActivity.length === 0 ? (
-                <p style={{ color: '#4A6B55', fontSize: '0.9rem', margin: 0 }}>No activity yet.</p>
-              ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {data.recentActivity.map((entry, i) => (
-                    <li key={`${entry.created_at}-${i}`}
-                      style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem',
-                        padding: '0.6rem 0', borderTop: i === 0 ? 'none' : '1px solid rgba(15,48,32,0.08)',
-                        fontSize: '0.875rem', color: '#0F2018' }}>
-                      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                        {entry.action}
-                        <span style={{ color: '#4A6B55' }}>
-                          {' '}— {entry.actor_type}{entry.actor_role ? ` (${entry.actor_role})` : ''}
-                          {entry.resource_type ? ` · ${entry.resource_type}` : ''}
-                        </span>
-                      </span>
-                      <span style={{ color: '#4A6B55', whiteSpace: 'nowrap' }}>{timeAgo(entry.created_at)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <Kpi label="Drivers online"        value={String(data.online_drivers)} />
+            <Kpi label="Drivers approved"      value={String(data.approved_drivers)} />
+            <Kpi label="Driver KYC pending"    value={String(data.driver_kyc_pending)} accent={data.driver_kyc_pending > 0} />
+            <Kpi label="Active businesses"     value={String(data.active_businesses)} />
+            <Kpi label="Businesses pending"    value={String(data.pending_businesses)} accent={data.pending_businesses > 0} />
+            <Kpi label="Business KYC pending"  value={String(data.business_kyc_pending)} accent={data.business_kyc_pending > 0} />
+            <Kpi label="Jobs today"            value={String(data.jobs_today)} />
+            <Kpi label="Live jobs"             value={String(data.live_jobs)} />
+            <Kpi label="Commission today"      value={ugx(data.commission_today_ugx)} />
+            <Kpi label="Pending withdrawals"   value={String(data.pending_withdrawals)} accent={data.pending_withdrawals > 0} />
+            <Kpi label="Open tickets"          value={String(data.open_tickets)} accent={data.open_tickets > 0} />
+          </div>
         )}
       </div>
     </div>

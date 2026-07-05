@@ -1,23 +1,21 @@
 /**
- * Rheo Admin — Platform Dashboard tests (TDD gate)
- * Place at: apps/admin/src/app/dashboard/page.test.tsx
+ * Rheo Admin — Platform Dashboard tests (contract-verified edition)
+ * Place at: apps/admin/src/app/dashboard/page.test.tsx  (replaces previous)
  *
- * Outcome-based tests per the agreed blueprint:
- *  1. Auth gate      — no cookie → redirect to /login, no KPI content
- *  2. Loading state  — pending fetch → loading indicator
- *  3. Happy path     — KPI values render, UGX formatted
- *  4. Token expiry   — API 401 → redirect to /login
- *  5. API failure    — error state + Retry refetches exactly once
- *  6. Activity XSS   — audit strings render as inert text
- *  7. Empty platform — zeros render, no NaN/undefined
+ * The mock payload below mirrors the LIVE API contract captured on
+ * 2026-07-05 — flat keys, numeric strings. If the backend ever changes
+ * shape, update the contract here deliberately; test 7 guarantees drift
+ * renders as zeros rather than crashing.
+ *
+ * Note: the previous XSS-inertness test was removed with the activity feed —
+ * this page now renders numbers only, so the user-supplied-string surface
+ * no longer exists.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DashboardPage from './page'
 import { redirectToLogin } from './navigation'
 
-// jsdom cannot navigate and its window.location is non-configurable, so the
-// page routes all redirects through ./navigation — mocked here as a seam.
 jest.mock('./navigation', () => ({ redirectToLogin: jest.fn() }))
 
 function setAuthCookie() {
@@ -27,26 +25,23 @@ function clearAuthCookie() {
   document.cookie = 'rheo_access=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT'
 }
 
-// Mirrors the shape returned by GET /api/v1/admin/dashboard
+// Live contract shape (numeric strings, flat keys)
 function mockPayload(overrides: Record<string, unknown> = {}) {
   return {
     success: true,
     data: {
-      jobs:        { queued: '4', in_transit: '7', delivered_today: '19' },
-      drivers:     { approved: '31', pending: '5', online: '12' },
-      businesses:  { active: '9', pending: '2' },
-      revenue:     { today: '450000' },
-      withdrawals: { count: '3', total: '120000' },
-      tickets:     { open: '6', critical: '1' },
-      recentActivity: [
-        {
-          action: 'driver.approve',
-          actor_type: 'staff',
-          actor_role: 'admin',
-          resource_type: 'driver',
-          created_at: new Date().toISOString(),
-        },
-      ],
+      approved_drivers: '31',
+      pending_drivers: '5',
+      online_drivers: '12',
+      active_businesses: '9',
+      pending_businesses: '1',
+      jobs_today: '19',
+      live_jobs: '7',
+      commission_today_ugx: '450000',
+      pending_withdrawals: '3',
+      open_tickets: '6',
+      driver_kyc_pending: '4',
+      business_kyc_pending: '2',
       ...overrides,
     },
   }
@@ -73,22 +68,23 @@ test('redirects to /login and renders no KPI content when no access cookie', asy
 // 2 ───────────────────────────────────────────────────────────────────────
 test('shows a loading state while the dashboard request is pending', () => {
   setAuthCookie()
-  ;(global.fetch as jest.Mock).mockReturnValue(new Promise(() => {})) // never resolves
+  ;(global.fetch as jest.Mock).mockReturnValue(new Promise(() => {}))
   render(<DashboardPage />)
   expect(screen.getByText(/loading/i)).toBeInTheDocument()
 })
 
 // 3 ───────────────────────────────────────────────────────────────────────
-test('renders KPI values from the API with UGX formatting', async () => {
+test('renders KPI values from the live contract with UGX formatting', async () => {
   setAuthCookie()
   ;(global.fetch as jest.Mock).mockReturnValue(okResponse(mockPayload()))
   render(<DashboardPage />)
-  expect(await screen.findByText('12')).toBeInTheDocument()            // drivers online
-  expect(screen.getByText('UGX 450,000')).toBeInTheDocument()          // revenue today
-  expect(screen.getByText(/drivers online/i)).toBeInTheDocument()
+  expect(await screen.findByText('12')).toBeInTheDocument()          // online_drivers
+  expect(screen.getByText('UGX 450,000')).toBeInTheDocument()        // commission_today_ugx
+  expect(screen.getByText('31')).toBeInTheDocument()                 // approved_drivers
+  expect(screen.getByText(/business kyc pending/i)).toBeInTheDocument()
   const call = (global.fetch as jest.Mock).mock.calls[0]
-  expect(call[0]).toMatch(/\/admin\/dashboard$/)                       // correct endpoint
-  expect(call[1].headers.Authorization).toBe('Bearer test-token')      // token attached
+  expect(call[0]).toMatch(/\/admin\/dashboard$/)
+  expect(call[1].headers.Authorization).toBe('Bearer test-token')
 })
 
 // 4 ───────────────────────────────────────────────────────────────────────
@@ -113,46 +109,23 @@ test('shows error state on API failure and Retry refetches exactly once', async 
 })
 
 // 6 ───────────────────────────────────────────────────────────────────────
-test('renders audit activity strings as inert text (no script execution)', async () => {
-  setAuthCookie()
-  const payload = mockPayload({
-    recentActivity: [{
-      action: '<script>alert(1)</script>',
-      actor_type: 'staff',
-      actor_role: 'admin',
-      resource_type: 'driver',
-      created_at: new Date().toISOString(),
-    }],
-  })
-  ;(global.fetch as jest.Mock).mockReturnValue(okResponse(payload))
-  const { container } = render(<DashboardPage />)
-  expect(await screen.findByText('<script>alert(1)</script>')).toBeInTheDocument()
-  expect(container.querySelector('script')).toBeNull()
-})
-
-// 7 ───────────────────────────────────────────────────────────────────────
 test('renders an empty platform gracefully — zeros, no NaN or undefined', async () => {
   setAuthCookie()
-  const payload = mockPayload({
-    jobs:        { queued: '0', in_transit: '0', delivered_today: '0' },
-    drivers:     { approved: '0', pending: '0', online: '0' },
-    businesses:  { active: '0', pending: '0' },
-    revenue:     { today: '0' },
-    withdrawals: { count: '0', total: '0' },
-    tickets:     { open: '0', critical: '0' },
-    recentActivity: [],
-  })
-  ;(global.fetch as jest.Mock).mockReturnValue(okResponse(payload))
+  const zeros = Object.fromEntries(
+    Object.keys(mockPayload().data).map((k) => [k, '0'])
+  )
+  ;(global.fetch as jest.Mock).mockReturnValue(okResponse({ success: true, data: zeros }))
   render(<DashboardPage />)
   expect(await screen.findByText('UGX 0')).toBeInTheDocument()
   expect(document.body.textContent).not.toMatch(/NaN|undefined/)
 })
 
-// 8 ───────────────────────────────────────────────────────────────────────
-test('never crashes on an unexpected API shape — renders zeros instead', async () => {
+// 7 ───────────────────────────────────────────────────────────────────────
+test('never crashes on contract drift — unknown shape renders zeros', async () => {
   setAuthCookie()
-  // Simulates a contract mismatch: success wrapper present, sections missing.
-  ;(global.fetch as jest.Mock).mockReturnValue(okResponse({ success: true, data: {} }))
+  ;(global.fetch as jest.Mock).mockReturnValue(
+    okResponse({ success: true, data: { totally: { different: 'shape' } } })
+  )
   render(<DashboardPage />)
   expect(await screen.findByText('UGX 0')).toBeInTheDocument()
   expect(screen.getByText(/drivers online/i)).toBeInTheDocument()
