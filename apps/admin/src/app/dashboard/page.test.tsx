@@ -147,3 +147,14 @@ test('renders an empty platform gracefully — zeros, no NaN or undefined', asyn
   expect(await screen.findByText('UGX 0')).toBeInTheDocument()
   expect(document.body.textContent).not.toMatch(/NaN|undefined/)
 })
+
+// 8 ───────────────────────────────────────────────────────────────────────
+test('never crashes on an unexpected API shape — renders zeros instead', async () => {
+  setAuthCookie()
+  // Simulates a contract mismatch: success wrapper present, sections missing.
+  ;(global.fetch as jest.Mock).mockReturnValue(okResponse({ success: true, data: {} }))
+  render(<DashboardPage />)
+  expect(await screen.findByText('UGX 0')).toBeInTheDocument()
+  expect(screen.getByText(/drivers online/i)).toBeInTheDocument()
+  expect(document.body.textContent).not.toMatch(/NaN|undefined/)
+})

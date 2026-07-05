@@ -60,6 +60,23 @@ const timeAgo = (iso: string): string => {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+/**
+ * Contract guard: the UI must never crash on an unexpected API shape.
+ * Missing sections coerce to empty objects (num() then yields 0) and a
+ * missing/invalid activity list coerces to []. A wrong shape renders as
+ * zeros — visibly wrong, safely wrong — instead of a client-side exception.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalize = (raw: any): DashboardData => ({
+  jobs:        raw?.jobs        ?? {},
+  drivers:     raw?.drivers     ?? {},
+  businesses:  raw?.businesses  ?? {},
+  revenue:     raw?.revenue     ?? {},
+  withdrawals: raw?.withdrawals ?? {},
+  tickets:     raw?.tickets     ?? {},
+  recentActivity: Array.isArray(raw?.recentActivity) ? raw.recentActivity : [],
+})
+
 const getAccessToken = (): string | null => {
   const m = document.cookie.match(/(?:^|;\s*)rheo_access=([^;]*)/)
   return m ? decodeURIComponent(m[1]) : null
@@ -110,7 +127,7 @@ export default function DashboardPage() {
       }
       if (!res.ok) throw new Error(`API responded with ${res.status}`)
       const body = await res.json()
-      setData(body.data as DashboardData)
+      setData(normalize(body?.data))
     } catch {
       setError('Could not load dashboard data.')
     } finally {
