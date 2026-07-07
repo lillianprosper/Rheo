@@ -2,10 +2,10 @@
  * Rheo Business — Jobs list tests
  * Place at: apps/web/src/app/dashboard/jobs/page.test.tsx
  *
- * Envelope mocks mirror the LIVE wire capture (2026-07-06):
- *   { success, data: [], meta: { total, page, limit, pages, hasNext, hasPrev } }
- * Row fields are drafted from job.routes.ts and marked for pinning once the
- * first real job exists on the wire.
+ * Envelope AND row mocks mirror LIVE wire captures:
+ *   envelope 2026-07-06; row pinned 2026-07-07 from the first real job
+ *   (RHO-20260707-00001) — money fields are decimal strings ("60000.00"),
+ *   displayed fare is total_fare_ugx.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -21,11 +21,13 @@ function clearAuthCookie() {
   document.cookie = 'rheo_access=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT'
 }
 
+// Subset of the wire-verified row (full capture has 40+ fields; extras pass through)
 const row = (over: Record<string, unknown> = {}) => ({
   id: 'a1b2', job_ref: 'RHEO-0001', status: 'queued',
   pickup_address: 'Nakasero Market, Kampala',
   delivery_address: 'Ntinda Shopping Centre, Kampala',
-  base_fare_ugx: '15000', created_at: '2026-07-06T10:00:00Z',
+  base_fare_ugx: '15000.00', total_fare_ugx: '15000.00',
+  created_at: '2026-07-06T10:00:00Z',
   ...over,
 })
 

@@ -9,11 +9,12 @@
  *   GET {NEXT_PUBLIC_API_URL}/jobs/business?page&limit&status →
  *   { success, data: JobRow[], meta: { total, page, limit, pages, hasNext, hasPrev } }
  *
- *   JobRow shape is drafted from job.routes.ts (SELECT j.*) and is
- *   schema-TOLERATED, not yet wire-verified — zero jobs exist. The moment
- *   Create Job ships and the first real job is posted, capture one row and
- *   pin this schema (registered follow-up). Until then, unknown fields
- *   render as em-dashes, never crashes.
+ *   JobRow shape PINNED against the live wire (first real job,
+ *   RHO-20260707-00001, captured 2026-07-07): numeric money fields arrive as
+ *   decimal strings ("60000.00"), fare shown is total_fare_ugx (what the
+ *   business pays, surge included). Per-field .catch fallbacks are retained
+ *   as the drift guard — unknown/renamed fields render as zeros/em-dashes,
+ *   never crashes.
  *
  * Security posture:
  *  - Scoping is server-side via the JWT businessId claim. This page sends
@@ -48,6 +49,7 @@ const JobRowSchema = z
     pickup_address:   z.string().catch('—'),
     delivery_address: z.string().catch('—'),
     base_fare_ugx:    z.coerce.number().catch(0),
+    total_fare_ugx:   z.coerce.number().catch(0), // wire-verified: surge-inclusive amount the business pays
     created_at:       z.string().catch(''),
   })
   .passthrough()
@@ -225,7 +227,7 @@ export default function JobsPage() {
                     <td style={{ padding: '0.75rem 1rem' }}><StatusBadge status={j.status} /></td>
                     <td style={{ padding: '0.75rem 1rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.pickup_address}</td>
                     <td style={{ padding: '0.75rem 1rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.delivery_address}</td>
-                    <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{ugx(j.base_fare_ugx)}</td>
+                    <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{ugx(j.total_fare_ugx)}</td>
                     <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap', color: 'var(--ink-muted, #6B7280)' }}>
                       {j.created_at ? new Date(j.created_at).toLocaleDateString('en-UG') : '—'}
                     </td>
