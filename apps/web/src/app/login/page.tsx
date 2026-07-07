@@ -1,6 +1,6 @@
 'use client'
 import { useState, FormEvent, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { api, RheoApiError } from '@/lib/api'
 
 // ─── Extracted into its own component so useSearchParams()
@@ -8,7 +8,6 @@ import { api, RheoApiError } from '@/lib/api'
 //     Without this, the entire page degrades to client-side rendering,
 //     killing middleware-based auth checks and SSR performance.
 function LoginContent() {
-  const router       = useRouter()
   const searchParams = useSearchParams()
   const from         = searchParams.get('from') || '/dashboard'
 
@@ -29,12 +28,20 @@ function LoginContent() {
       // are vulnerable to XSS token theft.
       document.cookie = `rheo_access=${encodeURIComponent(accessToken)};Path=/;SameSite=Strict${secure}`
       document.cookie = `rheo_refresh=${encodeURIComponent(refreshToken)};Path=/;SameSite=Strict;Max-Age=${30*24*3600}${secure}`
-      router.push(from)
+      // FIX: hard navigation instead of router.push(from).
+      // router.push is a soft client-side navigation and re-serves the
+      // /dashboard payload the router prefetched while logged OUT (the
+      // 304s in the Network tab), so the sign-in card appeared to "stay
+      // open" even after a successful 200. A full-page navigation bypasses
+      // the client router cache entirely, so middleware and server
+      // components see the fresh auth cookies on first render.
+      window.location.assign(from)
     } catch (err) {
       setError(err instanceof RheoApiError ? err.error.message : 'Unable to connect. Please try again.')
-    } finally {
       setLoading(false)
     }
+    // Deliberately NOT clearing `loading` on success — the page is
+    // navigating away; re-enabling the button would allow a double submit.
   }
 
   return (
