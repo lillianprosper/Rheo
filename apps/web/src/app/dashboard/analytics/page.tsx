@@ -78,7 +78,11 @@ type Billing     = z.infer<typeof BillingSchema>
 const ugx = (v: number): string => `UGX ${v.toLocaleString('en-UG')}`
 const day = (iso: string): string => {
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })
+  // Pinned to Africa/Kampala: snapshot dates are business-day facts in EAT.
+  // Without this, a browser in another timezone shifts "Jul 7" to "Jul 6".
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-UG', { month: 'short', day: 'numeric', timeZone: 'Africa/Kampala' })
 }
 
 const getAccessToken = (): string | null => {
