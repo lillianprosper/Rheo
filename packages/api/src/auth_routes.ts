@@ -5,15 +5,15 @@ import QRCode from 'qrcode'
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 
-import { query, queryOne, withTransaction } from './config/database'
-import { redis } from './config/redis'
-import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistAccessToken, decodeToken } from './utils/jwt'
-import { generateToken, encrypt, decrypt } from './utils/encryption'
-import { AppError, ConflictError, success } from './utils/errors'
-import { auditLog } from './utils/audit'
-import { authenticate } from './middleware/rbac'
-import { sendSMS } from './services/sms.service'
-import { sendEmail } from './services/email.service'
+import { query, queryOne, withTransaction } from '../../config/database'
+import { redis } from '../../config/redis'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistAccessToken, decodeToken } from '../../utils/jwt'
+import { generateToken, encrypt, decrypt } from '../../utils/encryption'
+import { AppError, ConflictError, success } from '../../utils/errors'
+import { auditLog } from '../../utils/audit'
+import { authenticate } from '../../middleware/rbac'
+import { sendSMS } from '../notifications/sms.service'
+import { sendEmail } from '../notifications/email.service'
 
 export const authRouter = Router()
 
@@ -319,13 +319,16 @@ authRouter.post('/driver/register', async (req: Request, res: Response) => {
   const passwordHash = await bcrypt.hash(data.password, 12)
 
   const result = await withTransaction(async (client) => {
-    const [authUser] = await client.query(
+    // node-postgres client.query() returns a Result object ({ rows, ... }),
+    // NOT an array — destructuring it threw "(intermediate value) is not
+    // iterable" and 500'd every driver registration. Fixed 2026-07-14.
+    const authUser = await client.query(
       `INSERT INTO auth_users (email, phone, password_hash, surface)
        VALUES ($1, $2, $3, 'driver') RETURNING id`,
       [data.email.toLowerCase(), data.phone, passwordHash]
     )
 
-    const [driver] = await client.query(
+    const driver = await client.query(
       `INSERT INTO drivers (auth_user_id, first_name, last_name, phone)
        VALUES ($1, $2, $3, $4) RETURNING id`,
       [authUser.rows[0].id, data.firstName, data.lastName, data.phone]
@@ -334,11 +337,19 @@ authRouter.post('/driver/register', async (req: Request, res: Response) => {
     return { authUserId: authUser.rows[0].id, driverId: driver.rows[0].id }
   })
 
-  // Send SMS with app download link
-  await sendSMS({
-    to: data.phone,
-    message: `Hi ${data.firstName}! Welcome to Rheo. Download the driver app to complete your application: https://rheo.co/driver-app`,
-  })
+  // Send SMS with app download link — BEST-EFFORT: the account is already
+  // committed; an SMS provider outage or missing credentials must never
+  // turn a successful registration into a 500.
+  // TODO(register): URL points at rheo.co (not owned) — fix to rheoug.com
+  // when the driver-app download page exists.
+  try {
+    await sendSMS({
+      to: data.phone,
+      message: `Hi ${data.firstName}! Welcome to Rheo. Download the driver app to complete your application: https://rheo.co/driver-app`,
+    })
+  } catch {
+    // SMS failure is logged by the service; not fatal to registration.
+  }
 
   await auditLog({
     actorId: result.driverId,
