@@ -5,15 +5,15 @@ import QRCode from 'qrcode'
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 
-import { query, queryOne, withTransaction } from '../../config/database'
-import { redis } from '../../config/redis'
-import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistAccessToken, decodeToken } from '../../utils/jwt'
-import { generateToken, encrypt, decrypt } from '../../utils/encryption'
-import { AppError, ConflictError, success } from '../../utils/errors'
-import { auditLog } from '../../utils/audit'
-import { authenticate } from '../../middleware/rbac'
-import { sendSMS } from '../notifications/sms.service'
-import { sendEmail } from '../notifications/email.service'
+import { query, queryOne, withTransaction } from './config/database'
+import { redis } from './config/redis'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, blacklistAccessToken, decodeToken } from './utils/jwt'
+import { generateToken, encrypt, decrypt } from './utils/encryption'
+import { AppError, ConflictError, success } from './utils/errors'
+import { auditLog } from './utils/audit'
+import { authenticate } from './middleware/rbac'
+import { sendSMS } from './services/sms.service'
+import { sendEmail } from './services/email.service'
 
 export const authRouter = Router()
 
@@ -198,21 +198,23 @@ authRouter.post('/business/register', async (req: Request, res: Response) => {
 
   const result = await withTransaction(async (client) => {
     // Create auth user
-    const [authUser] = await client.query(
+    // pg client.query() returns a Result object, not an array — same bug
+    // class as driver registration; fixed 2026-07-16 before first real use.
+    const authUser = await client.query(
       `INSERT INTO auth_users (email, password_hash, surface)
        VALUES ($1, $2, 'business') RETURNING id`,
       [data.email.toLowerCase(), passwordHash]
     )
 
     // Create business record
-    const [business] = await client.query(
+    const business = await client.query(
       `INSERT INTO businesses (auth_user_id, business_name, primary_email, primary_phone)
        VALUES ($1, $2, $3, $4) RETURNING id`,
       [authUser.rows[0].id, data.businessName, data.email.toLowerCase(), data.phone]
     )
 
     // Create owner business member
-    const [member] = await client.query(
+    const member = await client.query(
       `INSERT INTO business_members (business_id, auth_user_id, role, first_name, last_name)
        VALUES ($1, $2, 'owner', $3, $4) RETURNING id`,
       [business.rows[0].id, authUser.rows[0].id, data.businessName, '']
@@ -228,11 +230,16 @@ authRouter.post('/business/register', async (req: Request, res: Response) => {
   // Send verification email
   const otp = Math.floor(100000 + Math.random() * 900000).toString()
   await redis.setOtp(result.authUserId, 'verify', otp, 3600)
-  await sendEmail({
-    to: data.email,
-    template: 'business_welcome',
-    data: { businessName: data.businessName, otp },
-  })
+  // BEST-EFFORT: email-provider failure must never 500 a committed signup.
+  try {
+    await sendEmail({
+      to: data.email,
+      template: 'business_welcome',
+      data: { businessName: data.businessName, otp },
+    })
+  } catch {
+    // Failure is logged by the service; user can request a resend.
+  }
 
   await auditLog({
     actorId: result.businessId,
