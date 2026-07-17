@@ -5,5 +5,8 @@
   },
   "allowScripts": {
     "sharp@0.34.5": true
+  },
+  "scripts": {
+    "test": "npm test --prefix apps/web"
   }
 }
