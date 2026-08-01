@@ -44,7 +44,7 @@ CREATE TYPE transaction_type AS ENUM (
 );
 
 CREATE TYPE transaction_status AS ENUM (
-  'pending', 'processing', 'completed', 'failed', 'reversed'
+  'pending', 'processing', 'completed', 'failed', 'reversed', 'flagged_for_review'
 );
 
 CREATE TYPE subscription_plan AS ENUM (

@@ -11,8 +11,8 @@ import { logger } from './utils/logger'
 import { sendNotification } from './services/notification.service'
 import { sendEmail } from './services/email.service'
 import {
-  chargeMobileMoney, initiateCardPayment, initiateTransfer,
-  verifyTransaction, verifyWebhookSignature, getAccountBank,
+  chargeMobileMoney, createPaymentLink, initiateTransfer,
+  verifyTransaction, verifyWebhookSignature,
 } from './services/flutterwave.service'
 
 export const paymentRouter = Router()
@@ -58,8 +58,9 @@ paymentRouter.post(
       if (!pm) throw new NotFoundError('Payment method')
 
       const accountNumber = decrypt(pm.account_number)
-      const network = pm.type === 'mtn_momo' ? 'MTN' : 'AIRTEL'
+      const network: 'MTN' | 'AIRTEL' = pm.type === 'mtn_momo' ? 'MTN' : 'AIRTEL'
 
+      // chargeMobileMoney returns a FLAT result: { flwRef, txRef, status, message }
       const charge = await chargeMobileMoney({
         amount,
         currency: 'UGX',
@@ -71,31 +72,31 @@ paymentRouter.post(
         narration: `Rheo ${plan.display_name} ${billingCycle} subscription`,
       })
 
-      // Store pending transaction
+      // Store pending transaction (use charge.flwRef, NOT charge.data.flw_ref)
       await query(
         `INSERT INTO transactions
           (type, status, business_id, amount_ugx, fee_ugx, net_ugx, provider, provider_ref, description, reference, initiated_by_type)
          VALUES ('subscription_charge','pending',$1,$2,0,$2,'flutterwave',$3,$4,$5,'system')`,
-        [req.businessId, amount, charge.data?.flw_ref, `${plan.display_name} subscription`, txRef]
+        [req.businessId, amount, charge.flwRef, `${plan.display_name} subscription`, txRef]
       )
 
       return success(res, {
         message: 'Payment initiated. Check your phone to approve the MoMo request.',
         txRef,
-        flwRef: charge.data?.flw_ref,
+        flwRef: charge.flwRef,
       })
     }
 
-    // Otherwise redirect to hosted payment page (card / any method)
-    const paymentLink = await initiateCardPayment({
+    // Otherwise redirect to hosted payment page (card / any method).
+    // createPaymentLink returns the hosted-link STRING directly.
+    const paymentLink = await createPaymentLink({
       amount,
       currency: 'UGX',
-      email: business.primary_email,
-      name: business.business_name,
-      phone: business.primary_phone,
       txRef,
+      email: business.email,
+      name: business.business_name,
+      narration: `Rheo ${plan.display_name} ${billingCycle} subscription`,
       redirectUrl: `${process.env.WEB_URL}/billing/callback?ref=${txRef}`,
-      meta: { businessId: req.businessId, planName, billingCycle },
     })
 
     await query(
@@ -105,7 +106,7 @@ paymentRouter.post(
       [req.businessId, amount, `${plan.display_name} subscription`, txRef]
     )
 
-    return success(res, { paymentLink: paymentLink.data?.link, txRef })
+    return success(res, { paymentLink, txRef })
   }
 )
 
@@ -164,23 +165,24 @@ paymentRouter.post(
     if (!wr) throw new NotFoundError('Approved withdrawal request')
 
     const accountNumber = decrypt(wr.account_number)
-    const accountBank = getAccountBank(wr.pm_type)
+    const network: 'MTN' | 'AIRTEL' = wr.pm_type === 'mtn_momo' ? 'MTN' : 'AIRTEL'
     const reference = `WTH-${Date.now()}-${generateToken(4).toUpperCase()}`
 
+    // initiateTransfer opts use { accountName, network } and return a FLAT { id, reference, status }
     const transfer = await initiateTransfer({
       amount: wr.net_ugx,
       currency: 'UGX',
       accountNumber,
-      accountBank,
-      beneficiaryName: `${wr.first_name} ${wr.last_name}`,
+      accountName: `${wr.first_name} ${wr.last_name}`,
+      network,
       narration: `Rheo driver earnings withdrawal`,
       reference,
     })
 
     const txRef = `TXN-WTH-${Date.now()}`
     await withTransaction(async (client) => {
-      // Record transaction
-      const [tx] = await client.query(
+      // Record transaction — client.query returns a QueryResult; read .rows[0]
+      const tx = await client.query(
         `INSERT INTO transactions
           (type, status, driver_id, amount_ugx, fee_ugx, net_ugx,
            provider, provider_ref, description, reference, initiated_by, initiated_by_type)
@@ -188,7 +190,7 @@ paymentRouter.post(
          RETURNING id`,
         [
           wr.driver_id, wr.amount_ugx, wr.fee_ugx, wr.net_ugx,
-          transfer.data?.id?.toString(), 'Driver earnings withdrawal',
+          transfer.id?.toString(), 'Driver earnings withdrawal',
           txRef, req.staffId,
         ]
       )
@@ -213,9 +215,11 @@ paymentRouter.post(
       recipientType: 'driver',
       type: 'payment',
       title: 'Withdrawal Processing 💸',
-      body: `Your withdrawal of ${wr.net_ugx.toLocaleString()} UGX is being sent to your account.`,
+      body: `Your withdrawal of ${Number(wr.net_ugx).toLocaleString()} UGX is being sent to your account.`,
       sendPush: true,
-      sendSms: true,
+      sendSMS: true,
+      phone: wr.phone,
+      smsMessage: `Rheo: your withdrawal of UGX ${Number(wr.net_ugx).toLocaleString()} is being sent to your ${network} number now.`,
     })
 
     await auditLog({
@@ -225,12 +229,12 @@ paymentRouter.post(
       action: 'withdrawal.disbursed',
       resourceType: 'withdrawal_request',
       resourceId: wr.id,
-      newData: { amount: wr.net_ugx, reference, transferId: transfer.data?.id },
+      newData: { amount: wr.net_ugx, reference, transferId: transfer.id },
       ip: req.ip,
       surface: 'staff',
     })
 
-    return success(res, { message: 'Transfer initiated', reference, transferId: transfer.data?.id })
+    return success(res, { message: 'Transfer initiated', reference, transferId: transfer.id })
   }
 )
 
@@ -343,7 +347,7 @@ paymentRouter.post(
   }
 )
 
-async function handleChargeCompleted(data: any) {
+export async function handleChargeCompleted(data: any) {
   const { tx_ref, status, amount, currency, flw_ref } = data
 
   if (status !== 'successful') {
@@ -354,17 +358,36 @@ async function handleChargeCompleted(data: any) {
     return
   }
 
-  // Verify with Flutterwave (never trust webhook alone)
-  const verification = await verifyTransaction(data.id)
-  if (verification.data?.status !== 'successful') {
-    logger.warn('Transaction verification failed', { txRef: tx_ref })
+  // Verify with Flutterwave FIRST (never trust the webhook alone). We pass the
+  // webhook's claimed amount/currency as the expected values; verifyTransaction
+  // re-checks against the provider and THROWS on any amount/currency mismatch.
+  let verification
+  try {
+    verification = await verifyTransaction(data.id, amount, currency)
+  } catch (err: any) {
+    // A mismatch means the amount was tampered with — flag for manual review,
+    // and do NOT complete the transaction.
+    logger.error('Payment verification mismatch — flagged for review', { txRef: tx_ref, error: err.message })
+    await query(
+      `UPDATE transactions SET status = 'flagged_for_review', provider_response = $1 WHERE reference = $2`,
+      [JSON.stringify({ verifyError: err.message, data }), tx_ref]
+    )
     return
   }
 
+  if (verification.status !== 'successful') {
+    logger.warn('Transaction verification not successful', { txRef: tx_ref })
+    return
+  }
+
+  // Now load OUR record to drive subscription activation.
   const tx = await queryOne<any>(
     `SELECT * FROM transactions WHERE reference = $1`, [tx_ref]
   )
-  if (!tx) return
+  if (!tx) {
+    logger.warn('Webhook for unknown transaction', { txRef: tx_ref })
+    return
+  }
 
   await withTransaction(async (client) => {
     await client.query(
@@ -376,10 +399,9 @@ async function handleChargeCompleted(data: any) {
 
     // If it's a subscription payment, activate the subscription
     if (tx.type === 'subscription_charge' && tx.business_id) {
-      // Extract plan info from description or meta
       const metaMatch = tx_ref.match(/^SUB-/)
       if (metaMatch) {
-        // Get pending plan info from the payment description
+        // Plan name is the first word of the stored description ("Growth subscription")
         const planName = tx.description.split(' ')[0].toLowerCase()
 
         const plan = await client.query(
@@ -389,7 +411,6 @@ async function handleChargeCompleted(data: any) {
 
         if (plan.rows[0]) {
           const periodEnd = new Date()
-          const txRefParts = tx_ref.split('-')
           const isAnnual = tx.description.includes('annual')
           isAnnual
             ? periodEnd.setFullYear(periodEnd.getFullYear() + 1)
@@ -437,7 +458,7 @@ async function handleChargeCompleted(data: any) {
   logger.info('Charge completed and processed', { txRef: tx_ref, amount })
 }
 
-async function handleTransferCompleted(data: any) {
+export async function handleTransferCompleted(data: any) {
   const { reference, status } = data
 
   const newStatus = status === 'SUCCESSFUL' ? 'completed' : 'failed'
@@ -451,8 +472,8 @@ async function handleTransferCompleted(data: any) {
       [newStatus, JSON.stringify(data), reference]
     )
 
-    // Update withdrawal request
-    const [wr] = await client.query(
+    // Update withdrawal request — client.query returns a QueryResult; read .rows[0]
+    const wr = await client.query(
       `UPDATE withdrawal_requests wr
        SET status = $1
        FROM transactions t
@@ -461,7 +482,7 @@ async function handleTransferCompleted(data: any) {
       [newStatus, reference]
     )
 
-    if (wr?.rows[0]) {
+    if (wr.rows[0]) {
       const { driver_id, net_ugx } = wr.rows[0]
 
       if (newStatus === 'failed') {
@@ -478,10 +499,10 @@ async function handleTransferCompleted(data: any) {
         type: 'payment',
         title: newStatus === 'completed' ? 'Withdrawal Successful 🎉' : 'Withdrawal Failed',
         body: newStatus === 'completed'
-          ? `${parseFloat(net_ugx).toLocaleString()} UGX has been sent to your account.`
+          ? `${Number(net_ugx).toLocaleString()} UGX has been sent to your account.`
           : 'Your withdrawal failed. Funds have been returned to your wallet. Please try again.',
         sendPush: true,
-        sendSms: true,
+        sendSMS: true,
       })
     }
   })
@@ -500,3 +521,4 @@ paymentRouter.get('/plans', async (req: Request, res: Response) => {
   )
   return success(res, plans)
 })
+
