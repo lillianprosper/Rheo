@@ -390,12 +390,13 @@ jobRouter.post(
 
     let photoUrl: string | null = null
     if (req.file) {
-      photoUrl = await uploadFile({
+      const uploaded = await uploadFile({
         buffer: req.file.buffer,
         mimeType: req.file.mimetype,
-        folder: `jobs/${req.params.jobId}/pod`,
-        filename: `photo-${Date.now()}`,
+        folder: 'jobs/pod', entityId: req.params.jobId,
+        originalName: req.file.originalname,
       })
+      photoUrl = uploaded.key
     }
 
     await query(
@@ -459,7 +460,7 @@ jobRouter.post('/tracking/location', requireDriver, async (req: Request, res: Re
     `UPDATE drivers SET last_lat = $1, last_lng = $2, last_seen_at = NOW(), is_online = true WHERE id = $3`,
     [lat, lng, req.driverId]
   )
-  await redis.setDriverOnline(req.driverId!, { lat, lng, speed }, 30)
+  await redis.setDriverOnline(req.driverId!, 30)
 
   // If on an active job, record tracking point
   if (jobId) {

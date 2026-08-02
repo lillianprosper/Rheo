@@ -2,10 +2,11 @@ import { createClient, RedisClientType } from 'redis'
 import { logger } from '../utils/logger'
 
 // ─── Redis client ─────────────────────────────────────────────────────────────
-// Redis serves three distinct roles in Rheo:
+// Redis serves four distinct roles in Rheo:
 //   1. Token blacklist — revoked JTIs stored until their natural expiry
 //   2. OTP store — 6-digit codes with short TTL (15min reset, 60min verify)
 //   3. Driver presence — online/offline status + last-seen heartbeat
+//   4. Job claim lock — atomic guard so only one driver can accept a job
 //
 // STRIDE: Denial of Service — Redis is in-memory. If it goes down,
 // blacklisted tokens become temporarily valid. Mitigate with Redis Sentinel
@@ -17,6 +18,7 @@ const K = {
   otp:         (userId: string, purpose: string) => `otp:${userId}:${purpose}`,
   driverOnline:(driverId: string)             => `driver:online:${driverId}`,
   rateLimitIp: (ip: string)                   => `rl:ip:${ip}`,
+  jobLock:     (jobId: string)                => `joblock:${jobId}`,
 }
 
 // ─── Client setup ─────────────────────────────────────────────────────────────
@@ -109,6 +111,20 @@ export const redis = {
     return (await client.exists(K.driverOnline(driverId))) === 1
   },
 
+  // ── Job claim lock ───────────────────────────────────────────────────────────
+  // SET NX = atomic "set only if not exists": exactly ONE driver wins the claim
+  // window even under simultaneous taps. TTL guards against a crashed holder
+  // deadlocking the job. Returns true if THIS caller acquired the lock.
+
+  async lockJob(jobId: string, driverId: string, ttlSeconds = 10): Promise<boolean> {
+    const result = await client.set(K.jobLock(jobId), driverId, { NX: true, EX: ttlSeconds })
+    return result === 'OK'
+  },
+
+  async unlockJob(jobId: string): Promise<void> {
+    await client.del(K.jobLock(jobId))
+  },
+
   // ── Generic ─────────────────────────────────────────────────────────────────
 
   /** Raw client access for cases not covered by the interface above. */
@@ -116,3 +132,4 @@ export const redis = {
     return client
   },
 }
+
