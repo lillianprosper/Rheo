@@ -609,21 +609,31 @@ authRouter.post('/forgot-password', async (req: Request, res: Response) => {
 })
 
 authRouter.post('/reset-password', async (req: Request, res: Response) => {
-  const { userId, otp, newPassword } = z.object({
-    userId: z.string().uuid(),
+  const { email, surface, otp, newPassword } = z.object({
+    email: z.string().email(),
+    surface: z.enum(['staff', 'business', 'driver']),
     otp: z.string().length(6),
     newPassword: z.string().min(8),
   }).parse(req.body)
 
-  const storedOtp = await redis.getOtp(userId, 'reset')
+  // Resolve the user from email+surface — the client never needs the userId,
+  // so the anti-enumeration guarantee from /forgot-password holds end to end.
+  const user = await queryOne<any>(
+    `SELECT id FROM auth_users WHERE email = $1 AND surface = $2`,
+    [email.toLowerCase(), surface]
+  )
+  // Uniform failure whether the user exists or the OTP is wrong — no enumeration.
+  if (!user) throw new AppError('Invalid or expired reset code', 400)
+
+  const storedOtp = await redis.getOtp(user.id, 'reset')
   if (!storedOtp || storedOtp !== otp) throw new AppError('Invalid or expired reset code', 400)
 
   const hash = await bcrypt.hash(newPassword, 12)
-  await query(`UPDATE auth_users SET password_hash = $1 WHERE id = $2`, [hash, userId])
-
-  // Revoke all existing sessions
-  await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1`, [userId])
-  await redis.deleteOtp(userId, 'reset')
+  await query(`UPDATE auth_users SET password_hash = $1 WHERE id = $2`, [hash, user.id])
+  // Revoke all existing sessions so old logins can't continue
+  await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1`, [user.id])
+  await redis.deleteOtp(user.id, 'reset')
 
   return success(res, { message: 'Password reset successfully. Please log in again.' })
 })
+
